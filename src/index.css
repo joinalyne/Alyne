@@ -1,0 +1,16 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-background: #EEECE8;
+  --color-primary: #1D3D38;
+  --color-accent: #B8860B;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: #EEECE8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #1D3D38;
+}

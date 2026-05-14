@@ -1,0 +1,99 @@
+import { BookOpen, Check, Dumbbell, MoreHorizontal, PenLine, Sparkles, Unlock } from 'lucide-react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router'
+
+export default function GoalSelection() {
+  const navigate = useNavigate()
+  const [selectedGoal, setSelectedGoal] = useState<string | null>('fitness')
+
+  const goals = [
+    { id: 'fitness', label: 'Fitness', icon: Dumbbell },
+    { id: 'writing', label: 'Writing', icon: PenLine },
+    { id: 'learning', label: 'Learning', icon: BookOpen },
+    { id: 'quitting', label: 'Quitting', icon: Unlock },
+    { id: 'mindfulness', label: 'Mindfulness', icon: Sparkles },
+    { id: 'other', label: 'Other', icon: MoreHorizontal },
+  ] as const
+
+  function handleFindPartner() {
+    void navigate('/finding-partner')
+  }
+
+  return (
+    <div className="flex min-h-dvh items-start justify-center bg-background p-6">
+      <div className="w-full max-w-md space-y-8 pt-12">
+        <div className="space-y-2 px-4 text-center">
+          <h1 className="text-[1.85rem] font-semibold leading-tight tracking-tight text-[#2b2b2b]">
+            What are you working on?
+          </h1>
+          <p className="text-[0.95rem] leading-relaxed text-[#2b2b2b]/60">
+            We&apos;ll find you a partner chasing the same thing.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          {goals.map((goal) => {
+            const Icon = goal.icon
+            const isSelected = selectedGoal === goal.id
+
+            return (
+              <button
+                key={goal.id}
+                type="button"
+                onClick={() => setSelectedGoal(goal.id)}
+                className="relative flex min-h-[140px] flex-col items-center justify-center gap-3 rounded-[1.25rem] bg-white p-6 transition-all duration-200 active:scale-[0.98]"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: isSelected ? '2px solid #104241' : '2px solid rgba(43, 43, 43, 0.08)',
+                  boxShadow: '0 2px 12px rgba(43, 43, 43, 0.04)',
+                }}
+              >
+                {isSelected ? (
+                  <div
+                    className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full"
+                    style={{ backgroundColor: '#104241' }}
+                  >
+                    <Check size={14} color="#FFFFFF" strokeWidth={3} />
+                  </div>
+                ) : null}
+
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-full"
+                  style={{ backgroundColor: '#f5f3f0' }}
+                >
+                  <Icon size={24} color="#a8893f" strokeWidth={1.25} />
+                </div>
+
+                <p
+                  className="text-center text-[0.95rem] leading-snug text-[#2b2b2b]"
+                  style={{ fontWeight: isSelected ? 600 : 500 }}
+                >
+                  {goal.label}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="space-y-3 pt-6">
+          <button
+            type="button"
+            onClick={handleFindPartner}
+            className="w-full rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98]"
+            style={{
+              backgroundColor: '#104241',
+              boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
+            }}
+          >
+            Find My Partner
+          </button>
+
+          <p className="px-4 text-center text-[0.85rem] leading-relaxed text-[#2b2b2b]/60">
+            Your partner will have the same goal. <br />
+            You&apos;ll be matched within 24 hours.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
