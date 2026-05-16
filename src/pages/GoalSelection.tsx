@@ -1,10 +1,13 @@
 import { BookOpen, Check, Dumbbell, MoreHorizontal, PenLine, Sparkles, Unlock } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { supabase } from '../lib/supabase'
 
 export default function GoalSelection() {
   const navigate = useNavigate()
   const [selectedGoal, setSelectedGoal] = useState<string | null>('fitness')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const goals = [
     { id: 'fitness', label: 'Fitness', icon: Dumbbell },
@@ -15,8 +18,39 @@ export default function GoalSelection() {
     { id: 'other', label: 'Other', icon: MoreHorizontal },
   ] as const
 
-  function handleFindPartner() {
-    void navigate('/finding-partner')
+  async function handleFindPartner() {
+    if (!selectedGoal) {
+      setError('Please pick a goal first.')
+      return
+    }
+
+    setError(null)
+    setSaving(true)
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError) throw userError
+      if (!user) {
+        void navigate('/')
+        return
+      }
+
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, goal: selectedGoal }, { onConflict: 'user_id' })
+
+      if (upsertError) throw upsertError
+
+      void navigate('/finding-partner')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save your goal. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -41,7 +75,8 @@ export default function GoalSelection() {
                 key={goal.id}
                 type="button"
                 onClick={() => setSelectedGoal(goal.id)}
-                className="relative flex min-h-[140px] flex-col items-center justify-center gap-3 rounded-[1.25rem] bg-white p-6 transition-all duration-200 active:scale-[0.98]"
+                disabled={saving}
+                className="relative flex min-h-[140px] flex-col items-center justify-center gap-3 rounded-[1.25rem] bg-white p-6 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
                 style={{
                   backgroundColor: '#FFFFFF',
                   border: isSelected ? '2px solid #104241' : '2px solid rgba(43, 43, 43, 0.08)',
@@ -75,17 +110,27 @@ export default function GoalSelection() {
           })}
         </div>
 
+        {error ? (
+          <p
+            className="rounded-2xl bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
+
         <div className="space-y-3 pt-6">
           <button
             type="button"
             onClick={handleFindPartner}
-            className="w-full rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98]"
+            disabled={saving || !selectedGoal}
+            className="w-full rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             style={{
               backgroundColor: '#104241',
               boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
             }}
           >
-            Find My Partner
+            {saving ? 'Saving…' : 'Find My Partner'}
           </button>
 
           <p className="px-4 text-center text-[0.85rem] leading-relaxed text-[#2b2b2b]/60">

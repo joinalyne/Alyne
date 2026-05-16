@@ -1,14 +1,19 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
+import { supabase } from '../lib/supabase'
 
 export default function ProfileSetup() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    setPhotoFile(file)
     const reader = new FileReader()
     reader.onloadend = () => {
       setPhotoPreview(reader.result as string)
@@ -16,9 +21,67 @@ export default function ProfileSetup() {
     reader.readAsDataURL(file)
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    void navigate('/goal-selection')
+
+    const trimmed = name.trim()
+    if (!trimmed) {
+      setError('Please enter your name.')
+      return
+    }
+
+    setError(null)
+    setSaving(true)
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError) throw userError
+      if (!user) {
+        void navigate('/')
+        return
+      }
+
+      let avatarUrl: string | undefined
+      if (photoFile) {
+        const ext = photoFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const path = `${user.id}/avatar.${ext}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(path, photoFile, {
+            upsert: true,
+            contentType: photoFile.type,
+          })
+
+        if (uploadError) throw uploadError
+
+        const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(path)
+        avatarUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`
+      }
+
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            user_id: user.id,
+            name: trimmed,
+            ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+          },
+          { onConflict: 'user_id' },
+        )
+
+      if (upsertError) throw upsertError
+
+      void navigate('/goal-selection')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save your profile. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -75,7 +138,7 @@ export default function ProfileSetup() {
               htmlFor="photo-upload"
               className="cursor-pointer text-[0.9rem] text-[#2b2b2b]/50 transition-opacity hover:opacity-100"
             >
-              Add a photo
+              {photoFile ? 'Change photo' : 'Add a photo'}
             </label>
           </div>
 
@@ -86,7 +149,8 @@ export default function ProfileSetup() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
               required
-              className="w-full rounded-[1.25rem] border-2 px-6 py-4 text-[1rem] transition-all duration-200 focus:outline-none"
+              disabled={saving}
+              className="w-full rounded-[1.25rem] border-2 px-6 py-4 text-[1rem] transition-all duration-200 focus:outline-none disabled:opacity-60"
               style={{
                 borderColor: 'rgba(43, 43, 43, 0.1)',
                 color: '#2b2b2b',
@@ -96,9 +160,19 @@ export default function ProfileSetup() {
             />
           </div>
 
+          {error ? (
+            <p
+              className="rounded-2xl bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+              role="alert"
+            >
+              {error}
+            </p>
+          ) : null}
+
           <button
             type="submit"
-            className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98]"
+            disabled={saving}
+            className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             style={{
               backgroundColor: '#104241',
               color: '#FFFFFF',
@@ -108,7 +182,7 @@ export default function ProfileSetup() {
               marginTop: '5px',
             }}
           >
-            Continue
+            {saving ? 'Saving…' : 'Continue'}
           </button>
         </form>
       </div>

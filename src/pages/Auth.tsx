@@ -1,33 +1,96 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ImageWithFallback } from '../components/alyne/ImageWithFallback'
+import { supabase } from '../lib/supabase'
 
 export default function Auth() {
   const navigate = useNavigate()
+  const [isSignUp, setIsSignUp] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    void navigate('/profile-setup')
+    setError(null)
+    setMessage(null)
+    setLoading(true)
+
+    try {
+      if (isSignUp) {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        })
+
+        if (signUpError) throw signUpError
+
+        if (data.session) {
+          void navigate('/profile-setup')
+          return
+        }
+
+        setMessage(
+          'Account created. Check your email to confirm your address, then log in.',
+        )
+        setIsSignUp(false)
+        return
+      }
+
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+
+      if (signInError) throw signInError
+
+      if (data.session) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('user_id', data.session.user.id)
+          .maybeSingle()
+
+        if (profileError) throw profileError
+
+        void navigate(profile ? '/home' : '/profile-setup')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-6 py-12">
       <div className="w-full max-w-md">
         <div className="text-center">
-          <ImageWithFallback
-            src="/alyne-logo.png"
-            alt="alyne"
-            className="mx-auto mb-6 w-40"
-          />
-          <p
-            className="text-[1.05rem]"
-            style={{ color: '#B8860B' }}
-          >
-            Your journey starts here.
+          <ImageWithFallback src="/alyne-logo.png" alt="alyne" className="mx-auto mb-6 w-40" />
+          <p className="text-[1.05rem]" style={{ color: '#B8860B' }}>
+            {isSignUp ? 'Your journey starts here.' : 'Welcome back.'}
           </p>
         </div>
+
+        {error ? (
+          <p
+            className="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
+
+        {message ? (
+          <p
+            className="mt-6 rounded-2xl bg-emerald-50 px-4 py-3 text-center text-sm text-emerald-800"
+            role="status"
+          >
+            {message}
+          </p>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="mt-12 space-y-4">
           <input
@@ -36,11 +99,10 @@ export default function Auth() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address"
             required
-            className="w-full rounded-full bg-white px-7 py-5 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none"
-            style={{
-              color: '#1D3D38',
-              boxShadow: '0 1px 2px rgba(29, 61, 56, 0.04)',
-            }}
+            autoComplete="email"
+            disabled={loading}
+            className="w-full rounded-full bg-white px-7 py-5 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none disabled:opacity-60"
+            style={{ color: '#1D3D38', boxShadow: '0 1px 2px rgba(29, 61, 56, 0.04)' }}
           />
 
           <input
@@ -49,42 +111,42 @@ export default function Auth() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             required
-            className="w-full rounded-full bg-white px-7 py-5 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none"
-            style={{
-              color: '#1D3D38',
-              boxShadow: '0 1px 2px rgba(29, 61, 56, 0.04)',
-            }}
+            minLength={6}
+            autoComplete={isSignUp ? 'new-password' : 'current-password'}
+            disabled={loading}
+            className="w-full rounded-full bg-white px-7 py-5 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none disabled:opacity-60"
+            style={{ color: '#1D3D38', boxShadow: '0 1px 2px rgba(29, 61, 56, 0.04)' }}
           />
 
           <button
             type="submit"
-            className="mt-8 w-full rounded-full py-5 text-[1.05rem] font-semibold text-white transition-all duration-200 active:scale-[0.98]"
-            style={{
-              backgroundColor: '#1D3D38',
-              boxShadow: '0 4px 16px rgba(29, 61, 56, 0.18)',
-            }}
+            disabled={loading}
+            className="mt-8 w-full rounded-full py-5 text-[1.05rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            style={{ backgroundColor: '#1D3D38', boxShadow: '0 4px 16px rgba(29, 61, 56, 0.18)' }}
           >
-            Get Started
+            {loading ? 'Please wait…' : isSignUp ? 'Get Started' : 'Log In'}
           </button>
         </form>
 
         <p className="mt-10 text-center text-[0.95rem]" style={{ color: '#1D3D38' }}>
-          Already have an account?{' '}
+          {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
           <button
             type="button"
-            className="font-semibold"
+            disabled={loading}
+            className="font-semibold disabled:opacity-60"
             style={{ color: '#B8860B' }}
+            onClick={() => {
+              setIsSignUp((v) => !v)
+              setError(null)
+              setMessage(null)
+            }}
           >
-            Log in
+            {isSignUp ? 'Log in' : 'Sign up'}
           </button>
         </p>
 
         <div className="mt-16 text-center">
-          <Link
-            to="/home"
-            className="text-[0.95rem]"
-            style={{ color: '#9a9a96' }}
-          >
+          <Link to="/home" className="text-[0.95rem]" style={{ color: '#9a9a96' }}>
             ← Back to home
           </Link>
         </div>
