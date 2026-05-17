@@ -55,7 +55,7 @@ export default function GoalSelection() {
 
   return (
     <div className="flex min-h-dvh items-start justify-center bg-background p-6">
-      <div className="w-full max-w-md space-y-5 pt-6">
+      <div className="w-full max-w-md space-y-5 pt-6 pb-10">
         <div className="space-y-1 px-4 text-center">
           <h1 className="text-[1.55rem] font-semibold leading-tight tracking-tight text-[#2b2b2b]">
             What are you working on?

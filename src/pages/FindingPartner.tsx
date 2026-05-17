@@ -74,7 +74,7 @@ export default function FindingPartner() {
                 y1="1"
                 x2="100"
                 y2="1"
-                stroke="#a8893f"
+                stroke="#d4b87a"
                 strokeWidth="1"
                 strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 0 }}
@@ -103,19 +103,19 @@ export default function FindingPartner() {
               <div className="flex gap-1.5">
                 <motion.div
                   className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: '#a8893f' }}
+                  style={{ backgroundColor: '#d4b87a' }}
                   animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <motion.div
                   className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: '#a8893f' }}
+                  style={{ backgroundColor: '#d4b87a' }}
                   animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
                 />
                 <motion.div
                   className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: '#a8893f' }}
+                  style={{ backgroundColor: '#d4b87a' }}
                   animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
                 />
