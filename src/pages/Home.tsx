@@ -21,11 +21,42 @@ function isToday(iso: string) {
   return new Date(iso).getTime() >= start.getTime()
 }
 
+function ymdLocal(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function computeStreak(rowsDesc: { created_at: string }[]) {
+  if (rowsDesc.length === 0) return 0
+
+  const dates = new Set(rowsDesc.map((r) => ymdLocal(new Date(r.created_at))))
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+
+  let cursor: Date
+  if (dates.has(ymdLocal(today))) cursor = new Date(today)
+  else if (dates.has(ymdLocal(yesterday))) cursor = new Date(yesterday)
+  else return 0
+
+  let streak = 0
+  while (dates.has(ymdLocal(cursor))) {
+    streak += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return streak
+}
+
 type LatestCheckIn = { message: string; created_at: string }
 
 /** Home dashboard from Figma Make — @see https://www.figma.com/make/GEiM8YhB9h1opQNaQ7FGLH/Design-Alyne-Home-Screen */
 export default function Home() {
   const [latest, setLatest] = useState<LatestCheckIn | null>(null)
+  const [streak, setStreak] = useState<number | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -43,11 +74,12 @@ export default function Home() {
         .select('message, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+        .limit(365)
 
       if (cancelled) return
-      setLatest(data ?? null)
+      const rows = data ?? []
+      setLatest(rows[0] ?? null)
+      setStreak(computeStreak(rows))
       setLoaded(true)
     })()
     return () => {
@@ -59,8 +91,9 @@ export default function Home() {
     name: 'You',
     photo:
       'https://images.unsplash.com/photo-1581564018992-95e729d4940e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXBweSUyMHdvbWFuJTIwcG9ydHJhaXQlMjBuYXR1cmFsfGVufDF8fHx8MTc3NTA2ODc4Nnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
-    streak: 7,
   }
+
+  const streakDisplay = streak ?? '—'
 
   const partner = {
     name: 'Jamie',
@@ -101,7 +134,7 @@ export default function Home() {
                 </div>
               </div>
               <p className="mt-3 text-[0.9rem] font-medium text-[#2b2b2b]">{currentUser.name}</p>
-              <p className="text-[0.85rem] text-[#2b2b2b]/60">{currentUser.streak} days</p>
+              <p className="text-[0.85rem] text-[#2b2b2b]/60">{streakDisplay} days</p>
             </div>
 
             <div
@@ -168,7 +201,7 @@ export default function Home() {
             >
               <AlyneCustomIcon size={24} color="#104241" />
             </div>
-            <p className="mb-0.5 text-[1.5rem] font-bold text-[#104241]">{currentUser.streak}</p>
+            <p className="mb-0.5 text-[1.5rem] font-bold text-[#104241]">{streakDisplay}</p>
             <p className="text-[0.8rem] text-[#2b2b2b]/60">Your streak</p>
           </div>
 
