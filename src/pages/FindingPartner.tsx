@@ -74,7 +74,7 @@ export default function FindingPartner() {
                 y1="1"
                 x2="100"
                 y2="1"
-                stroke="#e8d2b4"
+                stroke="#d4b87a"
                 strokeWidth="1"
                 strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 0 }}
