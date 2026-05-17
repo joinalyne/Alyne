@@ -1,5 +1,4 @@
 import { motion } from 'motion/react'
-import { Link } from 'react-router'
 import { ImageWithFallback } from '../components/alyne/ImageWithFallback'
 
 export default function FindingPartner() {
@@ -162,14 +161,6 @@ export default function FindingPartner() {
           </motion.p>
         </div>
 
-        <div className="pt-2">
-          <Link
-            to="/matched"
-            className="text-[0.9rem] font-semibold text-[#104241] underline decoration-[#104241]/30 underline-offset-4 hover:opacity-80"
-          >
-            Preview match
-          </Link>
-        </div>
       </div>
     </div>
   )
