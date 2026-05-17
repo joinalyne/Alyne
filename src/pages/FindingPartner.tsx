@@ -124,7 +124,7 @@ export default function FindingPartner() {
           </div>
         </div>
 
-        <div className="space-y-3 px-4">
+        <div className="space-y-3 px-4 pb-2">
           <motion.h1
             className="text-[1.6rem] font-semibold leading-tight tracking-tight text-[#2b2b2b]"
             initial={{ opacity: 0, y: 10 }}
@@ -152,8 +152,8 @@ export default function FindingPartner() {
           </motion.p>
 
           <motion.p
-            className="text-[0.9rem] italic"
-            style={{ color: '#9a7a30' }}
+            className="pt-3 text-[0.95rem] font-medium italic"
+            style={{ color: '#5e4513' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 1.2 }}
