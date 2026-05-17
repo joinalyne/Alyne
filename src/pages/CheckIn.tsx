@@ -1,11 +1,15 @@
 import { Camera, Edit3, Mic } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { supabase } from '../lib/supabase'
 
 export default function CheckIn() {
   const navigate = useNavigate()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [submitted, setSubmitted] = useState(false)
 
   const partner = { name: 'Jamie' }
 
@@ -40,8 +44,46 @@ export default function CheckIn() {
     },
   ] as const
 
-  function handleSend() {
-    void navigate('/home')
+  async function handleSend() {
+    if (selectedOption !== 'text') {
+      void navigate('/home')
+      return
+    }
+
+    const trimmed = message.trim()
+    if (!trimmed) {
+      setError('Add a few words before sending.')
+      return
+    }
+
+    setError(null)
+    setSaving(true)
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError) throw userError
+      if (!user) {
+        void navigate('/')
+        return
+      }
+
+      const { error: insertError } = await supabase
+        .from('checkins')
+        .insert({ user_id: user.id, message: trimmed })
+
+      if (insertError) throw insertError
+
+      setMessage('')
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send your check-in. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -96,9 +138,13 @@ export default function CheckIn() {
         >
           <textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value)
+              if (submitted) setSubmitted(false)
+            }}
             placeholder="How did it go today?"
-            className="w-full resize-none rounded-[1.25rem] border-2 border-[rgba(16,66,65,0.1)] bg-white p-5 text-[0.95rem] text-[#2b2b2b] transition-all focus:outline-none"
+            disabled={saving}
+            className="w-full resize-none rounded-[1.25rem] border-2 border-[rgba(16,66,65,0.1)] bg-white p-5 text-[0.95rem] text-[#2b2b2b] transition-all focus:outline-none disabled:opacity-60"
             style={{
               minHeight: '120px',
               boxShadow: '0 2px 12px rgba(43, 43, 43, 0.04)',
@@ -107,17 +153,36 @@ export default function CheckIn() {
           />
         </div>
 
+        {error ? (
+          <p
+            className="rounded-2xl bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
+
+        {submitted ? (
+          <p
+            className="rounded-2xl bg-emerald-50 px-4 py-3 text-center text-sm text-emerald-800"
+            role="status"
+          >
+            Check-in sent. {partner.name} will be notified.
+          </p>
+        ) : null}
+
         <div className="space-y-3 pt-6">
           <button
             type="button"
             onClick={handleSend}
-            className="w-full rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98]"
+            disabled={saving}
+            className="w-full rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             style={{
               backgroundColor: '#104241',
               boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
             }}
           >
-            Send to {partner.name}
+            {saving ? 'Sending…' : `Send to ${partner.name}`}
           </button>
 
           <p className="px-4 text-center text-[0.85rem] text-[#2b2b2b]/50">
