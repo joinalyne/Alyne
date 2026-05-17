@@ -152,9 +152,10 @@ export default function FindingPartner() {
           </motion.p>
 
           <motion.p
-            className="text-[0.85rem] italic text-[#a8893f]/70"
+            className="text-[0.9rem] italic"
+            style={{ color: '#9a7a30' }}
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 1.2 }}
           >
             Good things take a moment.
