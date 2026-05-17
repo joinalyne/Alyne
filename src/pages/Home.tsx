@@ -106,34 +106,33 @@ export default function Home() {
   const sharedGoal = 'Practice daily meditation'
 
   return (
-    <div className="flex min-h-dvh items-start justify-center bg-background p-6">
-      <div className="w-full max-w-md space-y-8 pt-12">
-        <div className="text-center">
-          <ImageWithFallback src="/alyne-logo.png" alt="Alyne" className="mx-auto w-28" />
-        </div>
-
-        <div className="text-center">
-          <p className="text-[0.95rem] text-[#2b2b2b]/60">Your partner&apos;s counting on you today.</p>
+    <div className="flex min-h-dvh items-start justify-center bg-background px-6 pb-6 pt-4">
+      <div className="w-full max-w-md space-y-4">
+        <div className="space-y-1 text-center">
+          <ImageWithFallback src="/alyne-logo.png" alt="Alyne" className="mx-auto w-24" />
+          <p className="text-[0.9rem] text-[#2b2b2b]/60">
+            Your partner&apos;s counting on you today.
+          </p>
         </div>
 
         <div
-          className="rounded-[1.75rem] bg-white p-8 shadow-sm"
+          className="rounded-[1.5rem] bg-white p-5"
           style={{ boxShadow: '0 2px 16px rgba(43, 43, 43, 0.04)' }}
         >
-          <div className="mb-6 flex items-center justify-center gap-6">
+          <div className="mb-4 flex items-center justify-center gap-5">
             <div className="flex flex-col items-center">
               <div className="relative">
                 <img
                   src={currentUser.photo}
                   alt={currentUser.name}
-                  className="h-20 w-20 rounded-full object-cover"
+                  className="h-16 w-16 rounded-full object-cover"
                   style={{ border: '3px solid #104241' }}
                 />
                 <div className="absolute -bottom-1 -right-1 rounded-full bg-white p-1.5 shadow-sm">
                   <AlyneCustomIcon size={14} color="#104241" />
                 </div>
               </div>
-              <p className="mt-3 text-[0.9rem] font-medium text-[#2b2b2b]">{currentUser.name}</p>
+              <p className="mt-2 text-[0.9rem] font-medium text-[#2b2b2b]">{currentUser.name}</p>
               <p className="text-[0.85rem] text-[#2b2b2b]/60">{streakDisplay} days</p>
             </div>
 
@@ -148,35 +147,35 @@ export default function Home() {
                 <img
                   src={partner.photo}
                   alt={partner.name}
-                  className="h-20 w-20 rounded-full object-cover"
+                  className="h-16 w-16 rounded-full object-cover"
                   style={{ border: '3px solid #a8893f' }}
                 />
                 <div className="absolute -bottom-1 -right-1 rounded-full bg-white p-1.5 shadow-sm">
                   <AlyneCustomIcon size={14} color="#a8893f" />
                 </div>
               </div>
-              <p className="mt-3 text-[0.9rem] font-medium text-[#2b2b2b]">{partner.name}</p>
+              <p className="mt-2 text-[0.9rem] font-medium text-[#2b2b2b]">{partner.name}</p>
               <p className="text-[0.85rem] text-[#2b2b2b]/60">{partner.streak} days</p>
             </div>
           </div>
 
           <div
-            className="border-t pt-4 text-center"
+            className="border-t pt-3 text-center"
             style={{ borderColor: 'rgba(43, 43, 43, 0.08)' }}
           >
             <p
-              className="mb-2 text-[0.8rem] uppercase tracking-wide text-[#2b2b2b]/50"
+              className="mb-1 text-[0.7rem] uppercase tracking-wide text-[#2b2b2b]/50"
               style={{ letterSpacing: '0.08em' }}
             >
               Shared Goal
             </p>
-            <p className="text-[1.05rem] font-medium text-[#2b2b2b]">{sharedGoal}</p>
+            <p className="text-[1rem] font-medium text-[#2b2b2b]">{sharedGoal}</p>
           </div>
         </div>
 
         <Link to="/check-in" className="block">
           <span
-            className="flex w-full items-center justify-center rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98]"
+            className="flex w-full items-center justify-center rounded-[1.25rem] py-4 text-[1.05rem] font-semibold text-white transition-all duration-200 active:scale-[0.98]"
             style={{
               backgroundColor: '#104241',
               boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
@@ -186,58 +185,59 @@ export default function Home() {
           </span>
         </Link>
 
-        <div className="px-4 pt-6 text-center">
-          <p className="text-[0.95rem] leading-relaxed text-[#2b2b2b]/65">
-            {partner.name} checked in {partner.lastCheckIn}. <br />
-            Keep your streak going! 🌱
-          </p>
-        </div>
+        <p className="text-center text-[0.85rem] leading-snug text-[#2b2b2b]/65">
+          {partner.name} checked in {partner.lastCheckIn}. Keep your streak going! 🌱
+        </p>
 
-        <div className="flex items-center justify-center gap-8 pt-4">
+        <div className="flex items-center justify-center gap-8">
           <div className="text-center">
             <div
-              className="mb-2 inline-flex h-14 w-14 items-center justify-center rounded-full"
+              className="mb-1 inline-flex h-12 w-12 items-center justify-center rounded-full"
               style={{ backgroundColor: '#f0f0f0' }}
             >
-              <AlyneCustomIcon size={24} color="#104241" />
+              <AlyneCustomIcon size={22} color="#104241" />
             </div>
-            <p className="mb-0.5 text-[1.5rem] font-bold text-[#104241]">{streakDisplay}</p>
-            <p className="text-[0.8rem] text-[#2b2b2b]/60">Your streak</p>
+            <p className="text-[1.25rem] font-bold leading-tight text-[#104241]">
+              {streakDisplay}
+            </p>
+            <p className="text-[0.75rem] text-[#2b2b2b]/60">Your streak</p>
           </div>
 
           <div className="text-center">
             <div
-              className="mb-2 inline-flex h-14 w-14 items-center justify-center rounded-full"
+              className="mb-1 inline-flex h-12 w-12 items-center justify-center rounded-full"
               style={{ backgroundColor: '#f0f0f0' }}
             >
-              <AlyneCustomIcon size={24} color="#a8893f" />
+              <AlyneCustomIcon size={22} color="#a8893f" />
             </div>
-            <p className="mb-0.5 text-[1.5rem] font-bold text-[#a8893f]">{partner.streak}</p>
-            <p className="text-[0.8rem] text-[#2b2b2b]/60">{partner.name}&apos;s streak</p>
+            <p className="text-[1.25rem] font-bold leading-tight text-[#a8893f]">
+              {partner.streak}
+            </p>
+            <p className="text-[0.75rem] text-[#2b2b2b]/60">{partner.name}&apos;s streak</p>
           </div>
         </div>
 
         {loaded ? (
           latest && isToday(latest.created_at) ? (
             <div
-              className="rounded-[1.25rem] bg-white p-5"
+              className="rounded-[1.25rem] bg-white p-4"
               style={{ boxShadow: '0 2px 12px rgba(43, 43, 43, 0.04)' }}
             >
               <p
-                className="mb-2 text-[0.75rem] uppercase tracking-wide text-[#2b2b2b]/50"
+                className="mb-1 text-[0.7rem] uppercase tracking-wide text-[#2b2b2b]/50"
                 style={{ letterSpacing: '0.08em' }}
               >
                 Your last check-in
               </p>
-              <p className="mb-2 text-[1rem] leading-relaxed text-[#2b2b2b]">
+              <p className="mb-1 text-[0.95rem] leading-snug text-[#2b2b2b]">
                 {latest.message}
               </p>
-              <p className="text-[0.8rem] text-[#2b2b2b]/55">
+              <p className="text-[0.75rem] text-[#2b2b2b]/55">
                 {formatRelative(latest.created_at)}
               </p>
             </div>
           ) : (
-            <p className="px-4 text-center text-[0.95rem] text-[#2b2b2b]/65">
+            <p className="text-center text-[0.9rem] text-[#2b2b2b]/65">
               You haven&apos;t checked in yet today.
             </p>
           )
