@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { AlyneCustomIcon } from '../components/alyne/AlyneCustomIcon'
 import { ImageWithFallback } from '../components/alyne/ImageWithFallback'
 import { supabase } from '../lib/supabase'
@@ -55,9 +55,15 @@ type LatestCheckIn = { message: string; created_at: string }
 
 /** Home dashboard from Figma Make — @see https://www.figma.com/make/GEiM8YhB9h1opQNaQ7FGLH/Design-Alyne-Home-Screen */
 export default function Home() {
+  const navigate = useNavigate()
   const [latest, setLatest] = useState<LatestCheckIn | null>(null)
   const [streak, setStreak] = useState<number | null>(null)
   const [loaded, setLoaded] = useState(false)
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    void navigate('/')
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -246,6 +252,17 @@ export default function Home() {
             </p>
           )
         ) : null}
+
+        {/* TODO: temporary — move into a settings / profile menu before launch */}
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-[0.75rem] text-[#2b2b2b]/40 hover:text-[#2b2b2b]/70"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
   )
