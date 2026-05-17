@@ -1,7 +1,25 @@
 import { Camera, Edit3, Mic } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { supabase } from '../lib/supabase'
+
+function startOfTodayIso() {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
+}
+
+async function hasCheckedInToday(userId: string) {
+  const { data, error } = await supabase
+    .from('checkins')
+    .select('id')
+    .eq('user_id', userId)
+    .gte('created_at', startOfTodayIso())
+    .limit(1)
+
+  if (error) throw error
+  return (data?.length ?? 0) > 0
+}
 
 export default function CheckIn() {
   const navigate = useNavigate()
@@ -10,6 +28,7 @@ export default function CheckIn() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [checkedToday, setCheckedToday] = useState(false)
 
   const partner = { name: 'Jamie' }
 
@@ -19,6 +38,25 @@ export default function CheckIn() {
     month: 'long',
     day: 'numeric',
   })
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+      try {
+        const exists = await hasCheckedInToday(user.id)
+        if (!cancelled && exists) setCheckedToday(true)
+      } catch {
+        // Silently ignore — handleSend re-checks defensively.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const checkInOptions = [
     {
@@ -71,6 +109,11 @@ export default function CheckIn() {
         return
       }
 
+      if (await hasCheckedInToday(user.id)) {
+        setCheckedToday(true)
+        return
+      }
+
       const { error: insertError } = await supabase
         .from('checkins')
         .insert({ user_id: user.id, message: trimmed })
@@ -79,6 +122,7 @@ export default function CheckIn() {
 
       setMessage('')
       setSubmitted(true)
+      setCheckedToday(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send your check-in. Please try again.')
     } finally {
@@ -169,26 +213,35 @@ export default function CheckIn() {
           >
             Check-in sent. {partner.name} will be notified.
           </p>
+        ) : checkedToday ? (
+          <p
+            className="rounded-2xl bg-emerald-50 px-4 py-3 text-center text-sm text-emerald-800"
+            role="status"
+          >
+            You&apos;ve already checked in today. See you tomorrow!
+          </p>
         ) : null}
 
-        <div className="space-y-3 pt-6">
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={saving}
-            className="w-full rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-            style={{
-              backgroundColor: '#104241',
-              boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
-            }}
-          >
-            {saving ? 'Sending…' : `Send to ${partner.name}`}
-          </button>
+        {checkedToday ? null : (
+          <div className="space-y-3 pt-6">
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={saving}
+              className="w-full rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+              style={{
+                backgroundColor: '#104241',
+                boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
+              }}
+            >
+              {saving ? 'Sending…' : `Send to ${partner.name}`}
+            </button>
 
-          <p className="px-4 text-center text-[0.85rem] text-[#2b2b2b]/50">
-            {partner.name} will be notified when you check in.
-          </p>
-        </div>
+            <p className="px-4 text-center text-[0.85rem] text-[#2b2b2b]/50">
+              {partner.name} will be notified when you check in.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
