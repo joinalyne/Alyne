@@ -86,16 +86,16 @@ export default function ProfileSetup() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md space-y-8">
-        <div className="space-y-2 text-center">
-          <h1 className="text-[1.75rem] tracking-tight" style={{ color: '#1A3328', fontWeight: 600 }}>
+      <div className="w-full max-w-md space-y-5">
+        <div className="space-y-1 text-center">
+          <h1 className="text-[1.5rem] tracking-tight" style={{ color: '#1A3328', fontWeight: 600 }}>
             Let&apos;s set up your profile.
           </h1>
-          <p className="text-[1rem] text-[#2b2b2b]/60">Your partner will see this.</p>
+          <p className="text-[0.95rem] text-[#2b2b2b]/60">Your partner will see this.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8 pt-4">
-          <div className="flex flex-col items-center space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="flex flex-col items-center space-y-2">
             <input
               type="file"
               id="photo-upload"
@@ -105,7 +105,7 @@ export default function ProfileSetup() {
             />
             <label
               htmlFor="photo-upload"
-              className="flex h-32 w-32 cursor-pointer items-center justify-center rounded-full transition-all duration-200 hover:opacity-80"
+              className="flex h-24 w-24 cursor-pointer items-center justify-center rounded-full transition-all duration-200 hover:opacity-80"
               style={{
                 backgroundColor: '#FFFFFF',
                 boxShadow: '0 2px 12px rgba(43, 43, 43, 0.03)',
@@ -119,8 +119,8 @@ export default function ProfileSetup() {
                 />
               ) : (
                 <svg
-                  width="40"
-                  height="40"
+                  width="32"
+                  height="32"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="#a8893f"
@@ -136,7 +136,7 @@ export default function ProfileSetup() {
             </label>
             <label
               htmlFor="photo-upload"
-              className="cursor-pointer text-[0.9rem] text-[#2b2b2b]/50 transition-opacity hover:opacity-100"
+              className="cursor-pointer text-[0.85rem] text-[#2b2b2b]/50 transition-opacity hover:opacity-100"
             >
               {photoFile ? 'Change photo' : 'Add a photo'}
             </label>
@@ -150,7 +150,7 @@ export default function ProfileSetup() {
               placeholder="Your name"
               required
               disabled={saving}
-              className="w-full rounded-[1.25rem] border-2 px-6 py-4 text-[1rem] transition-all duration-200 focus:outline-none disabled:opacity-60"
+              className="w-full rounded-[1.25rem] border-2 px-6 py-3.5 text-[1rem] transition-all duration-200 focus:outline-none disabled:opacity-60"
               style={{
                 borderColor: 'rgba(43, 43, 43, 0.1)',
                 color: '#2b2b2b',
@@ -162,7 +162,7 @@ export default function ProfileSetup() {
 
           {error ? (
             <p
-              className="rounded-2xl bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+              className="rounded-2xl bg-red-50 px-4 py-2.5 text-center text-sm text-red-700"
               role="alert"
             >
               {error}
@@ -172,14 +172,13 @@ export default function ProfileSetup() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-[1.25rem] py-3.5 transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             style={{
               backgroundColor: '#104241',
               color: '#FFFFFF',
               fontSize: '1.05rem',
               fontWeight: 700,
               boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
-              marginTop: '5px',
             }}
           >
             {saving ? 'Saving…' : 'Continue'}

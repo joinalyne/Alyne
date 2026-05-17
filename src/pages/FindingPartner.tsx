@@ -4,21 +4,21 @@ import { ImageWithFallback } from '../components/alyne/ImageWithFallback'
 export default function FindingPartner() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md space-y-10 text-center">
+      <div className="w-full max-w-md space-y-6 text-center">
         <motion.div
-          className="flex justify-center pt-4"
+          className="flex justify-center"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <ImageWithFallback src="/alyne-logo.png" alt="Alyne" className="w-28" />
+          <ImageWithFallback src="/alyne-logo.png" alt="Alyne" className="w-24" />
         </motion.div>
 
-        <div className="flex items-center justify-center py-8">
-          <div className="relative h-[140px] w-[280px]">
+        <div className="flex items-center justify-center py-4">
+          <div className="relative h-[110px] w-[240px]">
             <motion.div
               className="absolute left-0 top-1/2 -translate-y-1/2"
-              style={{ width: '70px', height: '77px' }}
+              style={{ width: '58px', height: '64px' }}
               initial={{ opacity: 0, x: -20 }}
               animate={{
                 opacity: 1,
@@ -41,7 +41,7 @@ export default function FindingPartner() {
 
             <motion.div
               className="absolute right-0 top-1/2 -translate-y-1/2"
-              style={{ width: '70px', height: '77px' }}
+              style={{ width: '58px', height: '64px' }}
               initial={{ opacity: 0, x: 20 }}
               animate={{
                 opacity: 1,
@@ -64,15 +64,15 @@ export default function FindingPartner() {
 
             <svg
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-              width="120"
+              width="100"
               height="2"
-              viewBox="0 0 120 2"
+              viewBox="0 0 100 2"
               aria-hidden
             >
               <motion.line
                 x1="0"
                 y1="1"
-                x2="120"
+                x2="100"
                 y2="1"
                 stroke="#a8893f"
                 strokeWidth="1"
@@ -124,9 +124,9 @@ export default function FindingPartner() {
           </div>
         </div>
 
-        <div className="space-y-4 px-4">
+        <div className="space-y-3 px-4">
           <motion.h1
-            className="text-[2rem] font-semibold leading-tight tracking-tight text-[#2b2b2b]"
+            className="text-[1.6rem] font-semibold leading-tight tracking-tight text-[#2b2b2b]"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.8 }}
@@ -142,7 +142,7 @@ export default function FindingPartner() {
           </motion.h1>
 
           <motion.p
-            className="px-2 text-[1rem] leading-relaxed text-[#2b2b2b]/70"
+            className="px-2 text-[0.95rem] leading-snug text-[#2b2b2b]/70"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 1 }}
@@ -152,7 +152,7 @@ export default function FindingPartner() {
           </motion.p>
 
           <motion.p
-            className="pt-2 text-[0.9rem] italic text-[#a8893f]/70"
+            className="text-[0.85rem] italic text-[#a8893f]/70"
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.7 }}
             transition={{ duration: 0.6, delay: 1.2 }}

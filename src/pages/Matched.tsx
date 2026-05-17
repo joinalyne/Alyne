@@ -18,23 +18,23 @@ export default function Matched() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-md space-y-5">
         <div className="text-center">
-          <ImageWithFallback src="/alyne-logo.png" alt="Alyne" className="mx-auto w-28" />
+          <ImageWithFallback src="/alyne-logo.png" alt="Alyne" className="mx-auto w-24" />
         </div>
 
-        <div className="flex items-center justify-center gap-6 pt-4">
+        <div className="flex items-center justify-center gap-5">
           <div className="flex flex-col items-center">
             <img
               src={currentUser.photo}
               alt={currentUser.name}
-              className="h-24 w-24 rounded-full object-cover"
+              className="h-20 w-20 rounded-full object-cover"
               style={{ border: '3px solid #104241' }}
             />
           </div>
 
           <div
-            className="h-[1px] w-10 rounded-full"
+            className="h-[1px] w-8 rounded-full"
             style={{ backgroundColor: '#104241', opacity: 0.3 }}
             aria-hidden
           />
@@ -43,38 +43,41 @@ export default function Matched() {
             <img
               src={partner.photo}
               alt={partner.name}
-              className="h-24 w-24 rounded-full object-cover"
+              className="h-20 w-20 rounded-full object-cover"
               style={{ border: '3px solid #104241' }}
             />
           </div>
         </div>
 
-        <div className="space-y-3 pt-2 text-center">
-          <h1 className="text-[1.65rem] font-semibold leading-tight tracking-tight" style={{ color: '#a8893f' }}>
+        <div className="space-y-2 text-center">
+          <h1
+            className="text-[1.4rem] font-semibold leading-tight tracking-tight"
+            style={{ color: '#a8893f' }}
+          >
             You&apos;ve been matched with {partner.name}!
           </h1>
-          <p className="px-4 text-[1.05rem] leading-relaxed text-[#2b2b2b]/70">
+          <p className="px-4 text-[0.95rem] leading-snug text-[#2b2b2b]/70">
             You&apos;re both working toward the same goal. Now hold each other to it.
           </p>
         </div>
 
         <div
-          className="rounded-[1.5rem] bg-white p-6 text-center"
+          className="rounded-[1.5rem] bg-white p-4 text-center"
           style={{ boxShadow: '0 2px 16px rgba(43, 43, 43, 0.04)' }}
         >
           <p
-            className="mb-3 text-[0.8rem] uppercase tracking-wide text-[#2b2b2b]/50"
+            className="mb-1 text-[0.7rem] uppercase tracking-wide text-[#2b2b2b]/50"
             style={{ letterSpacing: '0.08em' }}
           >
             Shared Goal
           </p>
-          <p className="text-[1.1rem] font-medium text-[#2b2b2b]">{sharedGoal}</p>
+          <p className="text-[1rem] font-medium text-[#2b2b2b]">{sharedGoal}</p>
         </div>
 
-        <div className="space-y-3 pt-4">
+        <div className="space-y-2">
           <Link to="/home" className="block">
             <span
-              className="flex w-full items-center justify-center rounded-[1.25rem] py-4 text-[1.05rem] font-bold text-white transition-all duration-200 active:scale-[0.98]"
+              className="flex w-full items-center justify-center rounded-[1.25rem] py-3.5 text-[1.05rem] font-bold text-white transition-all duration-200 active:scale-[0.98]"
               style={{
                 backgroundColor: '#104241',
                 boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
@@ -83,7 +86,7 @@ export default function Matched() {
               Say Hello 👋
             </span>
           </Link>
-          <p className="pt-4 text-center text-[0.85rem] text-[#2b2b2b]/50">
+          <p className="text-center text-[0.8rem] text-[#2b2b2b]/50">
             {partner.name} will be notified that you&apos;ve matched.
           </p>
         </div>

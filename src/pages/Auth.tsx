@@ -65,18 +65,18 @@ export default function Auth() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-6 py-12">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-6 py-6">
       <div className="w-full max-w-md">
         <div className="text-center">
-          <ImageWithFallback src="/alyne-logo.png" alt="alyne" className="mx-auto mb-6 w-40" />
-          <p className="text-[1.05rem]" style={{ color: '#B8860B' }}>
+          <ImageWithFallback src="/alyne-logo.png" alt="alyne" className="mx-auto mb-3 w-32" />
+          <p className="text-[1rem]" style={{ color: '#B8860B' }}>
             {isSignUp ? 'Your journey starts here.' : 'Welcome back.'}
           </p>
         </div>
 
         {error ? (
           <p
-            className="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+            className="mt-4 rounded-2xl bg-red-50 px-4 py-2.5 text-center text-sm text-red-700"
             role="alert"
           >
             {error}
@@ -85,14 +85,14 @@ export default function Auth() {
 
         {message ? (
           <p
-            className="mt-6 rounded-2xl bg-emerald-50 px-4 py-3 text-center text-sm text-emerald-800"
+            className="mt-4 rounded-2xl bg-emerald-50 px-4 py-2.5 text-center text-sm text-emerald-800"
             role="status"
           >
             {message}
           </p>
         ) : null}
 
-        <form onSubmit={handleSubmit} className="mt-12 space-y-4">
+        <form onSubmit={handleSubmit} className="mt-8 space-y-3">
           <input
             type="email"
             value={email}
@@ -101,7 +101,7 @@ export default function Auth() {
             required
             autoComplete="email"
             disabled={loading}
-            className="w-full rounded-full bg-white px-7 py-5 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none disabled:opacity-60"
+            className="w-full rounded-full bg-white px-6 py-4 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none disabled:opacity-60"
             style={{ color: '#1D3D38', boxShadow: '0 1px 2px rgba(29, 61, 56, 0.04)' }}
           />
 
@@ -114,21 +114,21 @@ export default function Auth() {
             minLength={6}
             autoComplete={isSignUp ? 'new-password' : 'current-password'}
             disabled={loading}
-            className="w-full rounded-full bg-white px-7 py-5 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none disabled:opacity-60"
+            className="w-full rounded-full bg-white px-6 py-4 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none disabled:opacity-60"
             style={{ color: '#1D3D38', boxShadow: '0 1px 2px rgba(29, 61, 56, 0.04)' }}
           />
 
           <button
             type="submit"
             disabled={loading}
-            className="mt-8 w-full rounded-full py-5 text-[1.05rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-5 w-full rounded-full py-4 text-[1.05rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             style={{ backgroundColor: '#1D3D38', boxShadow: '0 4px 16px rgba(29, 61, 56, 0.18)' }}
           >
             {loading ? 'Please wait…' : isSignUp ? 'Get Started' : 'Log In'}
           </button>
         </form>
 
-        <p className="mt-10 text-center text-[0.95rem]" style={{ color: '#1D3D38' }}>
+        <p className="mt-6 text-center text-[0.9rem]" style={{ color: '#1D3D38' }}>
           {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
           <button
             type="button"
@@ -145,8 +145,8 @@ export default function Auth() {
           </button>
         </p>
 
-        <div className="mt-16 text-center">
-          <Link to="/home" className="text-[0.95rem]" style={{ color: '#9a9a96' }}>
+        <div className="mt-8 text-center">
+          <Link to="/home" className="text-[0.9rem]" style={{ color: '#9a9a96' }}>
             ← Back to home
           </Link>
         </div>

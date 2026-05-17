@@ -94,6 +94,7 @@ export default function Home() {
   }
 
   const streakDisplay = streak ?? '—'
+  const streakLabel = streak === 1 ? 'day' : 'days'
 
   const partner = {
     name: 'Jamie',
@@ -133,7 +134,9 @@ export default function Home() {
                 </div>
               </div>
               <p className="mt-2 text-[0.9rem] font-medium text-[#2b2b2b]">{currentUser.name}</p>
-              <p className="text-[0.85rem] text-[#2b2b2b]/60">{streakDisplay} days</p>
+              <p className="text-[0.85rem] text-[#2b2b2b]/60">
+                {streakDisplay} {streakLabel}
+              </p>
             </div>
 
             <div
@@ -186,7 +189,8 @@ export default function Home() {
         </Link>
 
         <p className="text-center text-[0.85rem] leading-snug text-[#2b2b2b]/65">
-          {partner.name} checked in {partner.lastCheckIn}. Keep your streak going! 🌱
+          {partner.name} checked in {partner.lastCheckIn}.{' '}
+          <span className="whitespace-nowrap">Keep your streak going! 🌱</span>
         </p>
 
         <div className="flex items-center justify-center gap-8">

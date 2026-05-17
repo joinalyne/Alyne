@@ -55,17 +55,17 @@ export default function GoalSelection() {
 
   return (
     <div className="flex min-h-dvh items-start justify-center bg-background p-6">
-      <div className="w-full max-w-md space-y-8 pt-12">
-        <div className="space-y-2 px-4 text-center">
-          <h1 className="text-[1.85rem] font-semibold leading-tight tracking-tight text-[#2b2b2b]">
+      <div className="w-full max-w-md space-y-5 pt-6">
+        <div className="space-y-1 px-4 text-center">
+          <h1 className="text-[1.55rem] font-semibold leading-tight tracking-tight text-[#2b2b2b]">
             What are you working on?
           </h1>
-          <p className="text-[0.95rem] leading-relaxed text-[#2b2b2b]/60">
+          <p className="text-[0.9rem] leading-snug text-[#2b2b2b]/60">
             We&apos;ll find you a partner chasing the same thing.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="grid grid-cols-2 gap-2.5">
           {goals.map((goal) => {
             const Icon = goal.icon
             const isSelected = selectedGoal === goal.id
@@ -76,7 +76,7 @@ export default function GoalSelection() {
                 type="button"
                 onClick={() => setSelectedGoal(goal.id)}
                 disabled={saving}
-                className="relative flex min-h-[140px] flex-col items-center justify-center gap-3 rounded-[1.25rem] bg-white p-6 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+                className="relative flex min-h-[108px] flex-col items-center justify-center gap-2 rounded-[1.25rem] bg-white p-4 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
                 style={{
                   backgroundColor: '#FFFFFF',
                   border: isSelected ? '2px solid #104241' : '2px solid rgba(43, 43, 43, 0.08)',
@@ -85,22 +85,22 @@ export default function GoalSelection() {
               >
                 {isSelected ? (
                   <div
-                    className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full"
+                    className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full"
                     style={{ backgroundColor: '#104241' }}
                   >
-                    <Check size={14} color="#FFFFFF" strokeWidth={3} />
+                    <Check size={12} color="#FFFFFF" strokeWidth={3} />
                   </div>
                 ) : null}
 
                 <div
-                  className="flex h-14 w-14 items-center justify-center rounded-full"
+                  className="flex h-11 w-11 items-center justify-center rounded-full"
                   style={{ backgroundColor: '#f5f3f0' }}
                 >
-                  <Icon size={24} color="#a8893f" strokeWidth={1.25} />
+                  <Icon size={20} color="#a8893f" strokeWidth={1.25} />
                 </div>
 
                 <p
-                  className="text-center text-[0.95rem] leading-snug text-[#2b2b2b]"
+                  className="text-center text-[0.9rem] leading-snug text-[#2b2b2b]"
                   style={{ fontWeight: isSelected ? 600 : 500 }}
                 >
                   {goal.label}
@@ -112,19 +112,19 @@ export default function GoalSelection() {
 
         {error ? (
           <p
-            className="rounded-2xl bg-red-50 px-4 py-3 text-center text-sm text-red-700"
+            className="rounded-2xl bg-red-50 px-4 py-2.5 text-center text-sm text-red-700"
             role="alert"
           >
             {error}
           </p>
         ) : null}
 
-        <div className="space-y-3 pt-6">
+        <div className="space-y-2">
           <button
             type="button"
             onClick={handleFindPartner}
             disabled={saving || !selectedGoal}
-            className="w-full rounded-[1.25rem] py-5 text-[1.1rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-[1.25rem] py-4 text-[1.05rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             style={{
               backgroundColor: '#104241',
               boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
@@ -133,9 +133,8 @@ export default function GoalSelection() {
             {saving ? 'Saving…' : 'Find My Partner'}
           </button>
 
-          <p className="px-4 text-center text-[0.85rem] leading-relaxed text-[#2b2b2b]/60">
-            Your partner will have the same goal. <br />
-            You&apos;ll be matched within 24 hours.
+          <p className="px-4 text-center text-[0.8rem] leading-snug text-[#2b2b2b]/60">
+            Your partner will have the same goal. You&apos;ll be matched within 24 hours.
           </p>
         </div>
       </div>
