@@ -1,9 +1,60 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { AlyneCustomIcon } from '../components/alyne/AlyneCustomIcon'
 import { ImageWithFallback } from '../components/alyne/ImageWithFallback'
+import { supabase } from '../lib/supabase'
+
+function formatRelative(iso: string) {
+  const diffMs = Math.max(0, Date.now() - new Date(iso).getTime())
+  const minutes = Math.floor(diffMs / 60_000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  const days = Math.floor(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}
+
+function isToday(iso: string) {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  return new Date(iso).getTime() >= start.getTime()
+}
+
+type LatestCheckIn = { message: string; created_at: string }
 
 /** Home dashboard from Figma Make — @see https://www.figma.com/make/GEiM8YhB9h1opQNaQ7FGLH/Design-Alyne-Home-Screen */
 export default function Home() {
+  const [latest, setLatest] = useState<LatestCheckIn | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user || cancelled) {
+        if (!cancelled) setLoaded(true)
+        return
+      }
+      const { data } = await supabase
+        .from('checkins')
+        .select('message, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (cancelled) return
+      setLatest(data ?? null)
+      setLoaded(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const currentUser = {
     name: 'You',
     photo:
@@ -132,6 +183,32 @@ export default function Home() {
             <p className="text-[0.8rem] text-[#2b2b2b]/60">{partner.name}&apos;s streak</p>
           </div>
         </div>
+
+        {loaded ? (
+          latest && isToday(latest.created_at) ? (
+            <div
+              className="rounded-[1.25rem] bg-white p-5"
+              style={{ boxShadow: '0 2px 12px rgba(43, 43, 43, 0.04)' }}
+            >
+              <p
+                className="mb-2 text-[0.75rem] uppercase tracking-wide text-[#2b2b2b]/50"
+                style={{ letterSpacing: '0.08em' }}
+              >
+                Your last check-in
+              </p>
+              <p className="mb-2 text-[1rem] leading-relaxed text-[#2b2b2b]">
+                {latest.message}
+              </p>
+              <p className="text-[0.8rem] text-[#2b2b2b]/55">
+                {formatRelative(latest.created_at)}
+              </p>
+            </div>
+          ) : (
+            <p className="px-4 text-center text-[0.95rem] text-[#2b2b2b]/65">
+              You haven&apos;t checked in yet today.
+            </p>
+          )
+        ) : null}
       </div>
     </div>
   )
