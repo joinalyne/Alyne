@@ -10,18 +10,18 @@ export default function Auth() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setMessage(null)
     setLoading(true)
+
+    const trimmedEmail = email.trim()
 
     try {
       if (isSignUp) {
         const { data, error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: trimmedEmail,
           password,
         })
 
@@ -32,10 +32,7 @@ export default function Auth() {
           return
         }
 
-        setMessage(
-          'Account created. Check your email to confirm your address, then log in.',
-        )
-        setIsSignUp(false)
+        void navigate('/check-email', { state: { email: trimmedEmail } })
         return
       }
 
@@ -80,15 +77,6 @@ export default function Auth() {
             role="alert"
           >
             {error}
-          </p>
-        ) : null}
-
-        {message ? (
-          <p
-            className="mt-4 rounded-2xl bg-emerald-50 px-4 py-2.5 text-center text-sm text-emerald-800"
-            role="status"
-          >
-            {message}
           </p>
         ) : null}
 
@@ -138,7 +126,6 @@ export default function Auth() {
             onClick={() => {
               setIsSignUp((v) => !v)
               setError(null)
-              setMessage(null)
             }}
           >
             {isSignUp ? 'Log in' : 'Sign up'}

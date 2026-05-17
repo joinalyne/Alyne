@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router'
 import Auth from './pages/Auth'
+import CheckEmail from './pages/CheckEmail'
 import CheckIn from './pages/CheckIn'
 import FindingPartner from './pages/FindingPartner'
 import GoalSelection from './pages/GoalSelection'
@@ -9,6 +10,7 @@ import ProfileSetup from './pages/ProfileSetup'
 
 export const router = createBrowserRouter([
   { path: '/', Component: Auth },
+  { path: '/check-email', Component: CheckEmail },
   { path: '/profile-setup', Component: ProfileSetup },
   { path: '/goal-selection', Component: GoalSelection },
   { path: '/finding-partner', Component: FindingPartner },
