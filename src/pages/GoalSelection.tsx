@@ -55,7 +55,7 @@ export default function GoalSelection() {
 
   return (
     <div className="flex min-h-dvh items-start justify-center bg-background p-6">
-      <div className="w-full max-w-md space-y-5 pt-6 pb-10">
+      <div className="w-full max-w-md space-y-5 pt-6">
         <div className="space-y-1 px-4 text-center">
           <h1 className="text-[1.55rem] font-semibold leading-tight tracking-tight text-[#2b2b2b]">
             What are you working on?
@@ -119,7 +119,7 @@ export default function GoalSelection() {
           </p>
         ) : null}
 
-        <div className="space-y-2">
+        <div>
           <button
             type="button"
             onClick={handleFindPartner}
@@ -133,7 +133,10 @@ export default function GoalSelection() {
             {saving ? 'Saving…' : 'Find My Partner'}
           </button>
 
-          <p className="px-4 text-center text-[0.8rem] leading-snug text-[#2b2b2b]/60">
+          <p
+            className="px-4 text-center text-[0.8rem] leading-snug text-[#2b2b2b]/60"
+            style={{ marginTop: '48px', paddingBottom: '40px' }}
+          >
             Your partner will have the same goal. You&apos;ll be matched within 24 hours.
           </p>
         </div>
