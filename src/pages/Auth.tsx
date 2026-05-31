@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { ImageWithFallback } from '../components/alyne/ImageWithFallback'
 import { supabase } from '../lib/supabase'
 
 export default function Auth() {
   const navigate = useNavigate()
-  const [isSignUp, setIsSignUp] = useState(true)
+  const location = useLocation()
+  const [isSignUp, setIsSignUp] = useState(location.pathname !== '/auth')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)

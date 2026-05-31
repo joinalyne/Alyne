@@ -10,6 +10,7 @@ import ProfileSetup from './pages/ProfileSetup'
 
 export const router = createBrowserRouter([
   { path: '/', Component: Auth },
+  { path: '/auth', Component: Auth },
   { path: '/check-email', Component: CheckEmail },
   { path: '/profile-setup', Component: ProfileSetup },
   { path: '/goal-selection', Component: GoalSelection },
