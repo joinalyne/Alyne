@@ -25,7 +25,7 @@ export default function Auth() {
           email: trimmedEmail,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth`,
+            emailRedirectTo: 'https://alyne-git-main-alyne-s-projects.vercel.app/auth',
           },
         })
 
