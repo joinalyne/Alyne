@@ -160,6 +160,15 @@ export default function FindingPartner() {
           >
             Good things take a moment.
           </motion.p>
+
+          <motion.p
+            className="px-2 text-[0.95rem] leading-snug text-[#2b2b2b]/70"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.4 }}
+          >
+            We&apos;ll email you the moment we find your match.
+          </motion.p>
         </div>
 
       </div>
