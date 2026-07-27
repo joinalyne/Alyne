@@ -263,3 +263,35 @@ export async function getPartnerSnapshot(): Promise<PartnerSnapshot | null> {
       : null,
   };
 }
+
+/**
+ * Ask the server to send the match notification.
+ *
+ * Called by BOTH partners when they land on /matched. That is deliberate: the
+ * match is created inside a Postgres function that cannot send email, and if
+ * only the client that created it were responsible, closing that tab would
+ * lose the email. Sending twice is prevented in the database rather than here
+ * — see migration 0005 — so two callers produce exactly one email.
+ *
+ * Never throws: a failed notification must not stop someone seeing their new
+ * partner.
+ */
+export async function notifyMatch(matchId: string): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+
+    const response = await fetch('/api/send-match-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ matchId }),
+    });
+
+    if (!response.ok) {
+      console.error('[match-email] send failed:', response.status, await response.text());
+    }
+  } catch (err) {
+    console.error('[match-email] request failed:', err);
+  }
+}

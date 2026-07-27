@@ -1,0 +1,147 @@
+// ============================================================================
+// POST /api/send-match-email   { matchId }
+//
+// Sends the match notification to both partners, exactly once per pairing.
+//
+// This is the app's first server-side code — Alyne is otherwise a pure static
+// SPA. It exists because Resend's API key must never reach the browser, and
+// because sending to *both* users means writing on behalf of someone who is
+// not the caller.
+//
+// Idempotency lives in the database, not here: claim_match_email() stamps
+// match_email_sent_at in a single conditional UPDATE, so when both partners
+// hit this endpoint at once exactly one of them wins the claim. See 0005.
+// ============================================================================
+
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { createClient } from '@supabase/supabase-js';
+
+type Req = { method?: string; body?: unknown; headers: Record<string, string | string[] | undefined> };
+type Res = {
+  status: (code: number) => Res;
+  json: (body: unknown) => void;
+};
+
+const TEMPLATE_PATH = join(process.cwd(), 'emails', 'match-notification.html');
+
+/** Read once per cold start rather than per request. */
+let cachedTemplate: string | null = null;
+function template(): string {
+  if (cachedTemplate === null) cachedTemplate = readFileSync(TEMPLATE_PATH, 'utf8');
+  return cachedTemplate;
+}
+
+function render(html: string, vars: Record<string, string>): string {
+  // Templates use {{name}}. Replace known keys only; anything unrecognised is
+  // left visible rather than silently blanked, so a missing variable shows up
+  // in a test send instead of shipping as an empty gap.
+  return Object.entries(vars).reduce(
+    (out, [key, value]) => out.replaceAll(`{{${key}}}`, value),
+    html,
+  );
+}
+
+export default async function handler(req: Req, res: Res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim() ?? process.env.SUPABASE_URL?.trim();
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim();
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+  const appUrl = process.env.APP_URL?.trim();
+  const from = process.env.EMAIL_FROM?.trim() ?? 'Alyne <hello@joinalyne.com>';
+
+  if (!supabaseUrl || !anonKey) {
+    return res.status(500).json({ error: 'Supabase env vars are not configured' });
+  }
+  if (!resendKey) {
+    // Explicit rather than a silent success: a missing key must not look like
+    // a delivered email.
+    return res.status(503).json({ error: 'RESEND_API_KEY is not configured' });
+  }
+  if (!appUrl) {
+    return res.status(500).json({ error: 'APP_URL is not configured' });
+  }
+
+  const authHeader = req.headers.authorization;
+  const token = typeof authHeader === 'string' ? authHeader.replace(/^Bearer /, '') : null;
+  if (!token) return res.status(401).json({ error: 'Missing bearer token' });
+
+  const matchId = (req.body as { matchId?: string } | undefined)?.matchId;
+  if (!matchId) return res.status(400).json({ error: 'matchId is required' });
+
+  // Act as the calling user, not the service role. claim_match_email() checks
+  // auth.uid() is a participant, so this endpoint cannot be used to make Alyne
+  // email arbitrary people.
+  const supabase = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false },
+  });
+
+  const { data, error } = await supabase.rpc('claim_match_email', { p_match_id: matchId });
+  if (error) {
+    console.error('[send-match-email] claim failed:', error.message);
+    return res.status(400).json({ error: error.message });
+  }
+
+  const claim = Array.isArray(data) ? data[0] : null;
+  if (!claim) {
+    // Already sent, or the caller is not in this match. Both are fine and both
+    // look the same to the client on purpose.
+    return res.status(200).json({ sent: false, reason: 'already-sent-or-not-a-participant' });
+  }
+
+  const assetBase = `${appUrl}/email`;
+  const html = template();
+
+  const recipients = [
+    { to: claim.user_a_email, name: claim.user_a_name, partner: claim.user_b_name },
+    { to: claim.user_b_email, name: claim.user_b_name, partner: claim.user_a_name },
+  ].filter((r) => !!r.to);
+
+  try {
+    const results = await Promise.all(
+      recipients.map(async (r) => {
+        const body = render(html, {
+          app_url: appUrl,
+          asset_base: assetBase,
+          user_name: r.name ?? 'there',
+          partner_name: r.partner ?? 'your partner',
+          goal: claim.goal,
+          avatar_url: `${assetBase}/default-avatar.png`,
+          partner_avatar_url: `${assetBase}/default-avatar.png`,
+        });
+
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resendKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from,
+            to: r.to,
+            subject: `You've been matched with ${r.partner ?? 'your partner'}`,
+            html: body,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Resend ${response.status}: ${(await response.text()).slice(0, 200)}`);
+        }
+        return r.to;
+      }),
+    );
+
+    return res.status(200).json({ sent: true, recipients: results });
+  } catch (err) {
+    // Hand the claim back so a retry can send, rather than leaving the pairing
+    // permanently marked as notified when nothing arrived.
+    await supabase.rpc('release_match_email', { p_match_id: matchId });
+    const message = err instanceof Error ? err.message : 'Unknown Resend failure';
+    console.error('[send-match-email] send failed, claim released:', message);
+    return res.status(502).json({ error: message });
+  }
+}

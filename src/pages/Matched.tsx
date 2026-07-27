@@ -2,7 +2,7 @@ import { AlyneWordmark } from '../components/AlyneWordmark';
 import { Avatar } from '../components/Avatar';
 import { Link, Navigate } from 'react-router';
 import { useEffect, useState } from 'react';
-import { getPartnerSnapshot, type PartnerSnapshot } from '../lib/supabase';
+import { getPartnerSnapshot, notifyMatch, type PartnerSnapshot } from '../lib/supabase';
 import { goalLabel } from '../lib/goals';
 import { useAuth } from '../contexts/useAuth';
 
@@ -17,6 +17,9 @@ export default function Matched() {
       if (!active) return;
       setSnapshot(result);
       setLoading(false);
+      // Fire and forget. Both partners call this; the database guarantees one
+      // email. Not awaited, so a slow mail send never delays the screen.
+      if (result) void notifyMatch(result.matchId);
     });
     return () => { active = false; };
   }, []);

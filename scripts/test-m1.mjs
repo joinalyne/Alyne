@@ -176,6 +176,33 @@ async function main() {
   check("partner can read the other's check-in", boSeesCheckIns?.some((c) => c.body === 'Wrote 500 words'),
     `${boSeesCheckIns?.length} visible`);
 
+  console.log('\n— match-notification claim —');
+  // Resend is needed to actually send, but the exactly-once guarantee is pure
+  // SQL, and that is the part that can genuinely go wrong.
+  const { data: claimA } = await ada.client.rpc('claim_match_email', { p_match_id: second });
+  check('a participant can claim the send', Array.isArray(claimA) && claimA.length === 1,
+    claimA?.[0] ? `${claimA[0].user_a_name} + ${claimA[0].user_b_name}` : 'no row');
+
+  const { data: claimB } = await bo.client.rpc('claim_match_email', { p_match_id: second });
+  check("the partner's claim returns nothing, so only one email goes out",
+    Array.isArray(claimB) && claimB.length === 0, `${claimB?.length} rows`);
+
+  const { data: claimC } = await cy.client.rpc('claim_match_email', { p_match_id: second });
+  check("an outsider cannot trigger someone else's email",
+    Array.isArray(claimC) && claimC.length === 0, `${claimC?.length} rows`);
+
+  await ada.client.rpc('release_match_email', { p_match_id: second });
+  const { data: claimD } = await ada.client.rpc('claim_match_email', { p_match_id: second });
+  check('releasing after a failed send allows a retry',
+    Array.isArray(claimD) && claimD.length === 1, `${claimD?.length} rows`);
+
+  await cy.client.rpc('release_match_email', { p_match_id: second });
+  const { data: stampRow } = await admin
+    .from('matches').select('match_email_sent_at').eq('id', second).single();
+  check('an outsider cannot release the claim either',
+    stampRow?.match_email_sent_at !== null,
+    stampRow?.match_email_sent_at ? 'stamp intact' : 'STAMP CLEARED');
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);
