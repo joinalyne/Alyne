@@ -1,24 +1,61 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
+import { updateDisplayName, uploadAvatar } from '../lib/supabase';
+import { useAuth } from '../contexts/useAuth';
 
 export default function ProfileSetup() {
-  const [name, setName] = useState('');
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { profile, refreshProfile } = useAuth();
+
+  const [typedName, setTypedName] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  // The preview is a data URL for display; the File itself is what gets
+  // uploaded, so both have to be kept.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Derived, not synced from an effect: the profile loads asynchronously, so
+  // copying it into state would clobber what the user has already typed when
+  // it eventually arrives. `?? ''` keeps the input controlled throughout.
+  const name = typedName ?? profile?.display_name ?? '';
+  const photoPreview = localPreview ?? profile?.avatar_url ?? null;
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
+        setLocalPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Profile setup:', { name, photo: photoPreview });
-    // Navigate to goal selection
+    setError(null);
+    setSaving(true);
+
+    try {
+      // Name first: it is the required field, and an avatar failing should not
+      // cost the user their name.
+      const named = await updateDisplayName(name.trim());
+      if (!named) throw new Error('Could not save your name. Please try again.');
+
+      if (photoFile) {
+        const url = await uploadAvatar(photoFile);
+        if (!url) setError('Your name was saved, but the photo would not upload.');
+      }
+
+      await refreshProfile();
+      navigate('/goal-selection');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -40,6 +77,16 @@ export default function ProfileSetup() {
             Your partner will see this.
           </p>
         </div>
+
+        {error ? (
+          <p
+            role="alert"
+            className="rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
+            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
+          >
+            {error}
+          </p>
+        ) : null}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-8 pt-4">
@@ -88,7 +135,7 @@ export default function ProfileSetup() {
               className="text-[0.9rem] cursor-pointer transition-opacity hover:opacity-100"
               style={{ color: '#8A8580' }}
             >
-              Add a photo
+              {photoPreview ? 'Change photo' : 'Add a photo'}
             </label>
           </div>
 
@@ -97,9 +144,10 @@ export default function ProfileSetup() {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setTypedName(e.target.value)}
               placeholder="Your name"
               required
+              autoComplete="given-name"
               className="w-full px-6 py-4 rounded-[1.25rem] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
               style={{
                 borderColor: 'rgba(43, 43, 43, 0.1)',
@@ -113,7 +161,8 @@ export default function ProfileSetup() {
           {/* Continue Button */}
           <button
             type="submit"
-            className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98]"
+            disabled={saving}
+            className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
             style={{
               backgroundColor: '#104241',
               color: '#FFFFFF',
@@ -123,7 +172,7 @@ export default function ProfileSetup() {
               marginTop: '5px'
             }}
           >
-            Continue
+            {saving ? 'Saving…' : 'Continue'}
           </button>
         </form>
 

@@ -1,27 +1,66 @@
 import { Settings } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, Navigate, useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
 import { CustomIcon } from '../components/CustomIcon';
 import { AlyneWordmark } from '../components/AlyneWordmark';
+import { Avatar } from '../components/Avatar';
+import { supabase, getPartnerSnapshot, type PartnerSnapshot } from '../lib/supabase';
+import { goalLabel } from '../lib/goals';
+import { useAuth } from '../contexts/useAuth';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
+/**
+ * Today's date in the browser's timezone, as YYYY-MM-DD.
+ *
+ * en-CA because it formats as ISO. Deliberately local rather than UTC: it is
+ * compared against check_ins.local_date, which is the user's local day.
+ */
+function todayLocalDate(): string {
+  return new Date().toLocaleDateString('en-CA');
+}
+
+function relativeTime(iso: string): string {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
 export default function Home() {
-  const currentUser = {
-    name: "You",
-    photo: "https://images.unsplash.com/photo-1581564018992-95e729d4940e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXBweSUyMHdvbWFuJTIwcG9ydHJhaXQlMjBuYXR1cmFsfGVufDF8fHx8MTc3NTA2ODc4Nnww&ixlib=rb-4.1.0&q=80&w=400",
-    streak: 0,
-    checkedInToday: false,
-  };
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const [snapshot, setSnapshot] = useState<PartnerSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const partner = {
-    name: "Jamie",
-    photo: "https://images.unsplash.com/photo-1640653583383-72b60809f273?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmllbmRseSUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwxfHx8fDE3NzUwNjg3ODd8MA&ixlib=rb-4.1.0&q=80&w=400",
-    streak: 12,
-    checkedInToday: true,
-    lastCheckIn: "2 hours ago",
-  };
+  useEffect(() => {
+    let active = true;
+    getPartnerSnapshot().then((result) => {
+      if (!active) return;
+      setSnapshot(result);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
-  const sharedGoal = "Practice daily meditation";
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    navigate('/', { replace: true });
+  }
+
+  if (loading) return null;
+
+  // No partner yet — her design has a dedicated screen for this.
+  if (!snapshot) return <Navigate to="/home-empty" replace />;
+
+  const myStreak = profile?.current_streak ?? 0;
+  const checkedInToday = profile?.last_check_in_date === todayLocalDate();
+  const partnerName = snapshot.partner.displayName ?? 'Your partner';
+  const partnerStreak = snapshot.partner.currentStreak;
+  const partnerLast = snapshot.partnerLatestCheckIn;
 
   return (
     <div className="min-h-screen flex items-start justify-center p-6 bg-background">
@@ -40,7 +79,9 @@ export default function Home() {
 
         {/* Subtitle */}
         <p className="text-center text-[0.95rem] mb-8" style={{ color: '#8A8580' }}>
-          Your partner's counting on you today.
+          {checkedInToday
+            ? "You've shown up today. Nice."
+            : "Your partner's counting on you today."}
         </p>
 
         {/* Partner card */}
@@ -58,11 +99,10 @@ export default function Home() {
             {/* You */}
             <div className="flex flex-col items-center">
               <div className="relative">
-                <img
-                  src={currentUser.photo}
-                  alt={currentUser.name}
-                  className="w-20 h-20 rounded-full object-cover"
-                  style={{ border: '3px solid #104241' }}
+                <Avatar
+                  src={profile?.avatar_url}
+                  name={profile?.display_name}
+                  size={80}
                 />
                 <div
                   className="absolute -bottom-1 -right-1 bg-white rounded-full p-1.5"
@@ -72,10 +112,10 @@ export default function Home() {
                 </div>
               </div>
               <p className="mt-3 text-[0.9rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>
-                {currentUser.name}
+                You
               </p>
               <p className="text-[0.82rem]" style={{ color: '#8A8580' }}>
-                {currentUser.streak} days
+                {myStreak} {myStreak === 1 ? 'day' : 'days'}
               </p>
             </div>
 
@@ -85,11 +125,10 @@ export default function Home() {
             {/* Partner */}
             <div className="flex flex-col items-center">
               <div className="relative">
-                <img
-                  src={partner.photo}
-                  alt={partner.name}
-                  className="w-20 h-20 rounded-full object-cover"
-                  style={{ border: '3px solid #A8893F' }}
+                <Avatar
+                  src={snapshot.partner.avatarUrl}
+                  name={snapshot.partner.displayName}
+                  size={80}
                 />
                 <div
                   className="absolute -bottom-1 -right-1 bg-white rounded-full p-1.5"
@@ -99,10 +138,10 @@ export default function Home() {
                 </div>
               </div>
               <p className="mt-3 text-[0.9rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>
-                {partner.name}
+                {partnerName}
               </p>
               <p className="text-[0.82rem]" style={{ color: '#8A8580' }}>
-                {partner.streak} days
+                {partnerStreak} {partnerStreak === 1 ? 'day' : 'days'}
               </p>
             </div>
           </div>
@@ -119,7 +158,7 @@ export default function Home() {
               Shared Goal
             </p>
             <p className="text-[1.1rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>
-              {sharedGoal}
+              {goalLabel(snapshot.goal)}
             </p>
           </div>
         </div>
@@ -127,7 +166,8 @@ export default function Home() {
         {/* Check In CTA */}
         <Link to="/check-in">
           <button
-            className="w-full transition-all duration-200 active:scale-[0.98] mb-6"
+            className="w-full transition-all duration-200 active:scale-[0.98] mb-6 disabled:opacity-60"
+            disabled={checkedInToday}
             style={{
               backgroundColor: '#104241',
               color: '#FFFFFF',
@@ -138,14 +178,23 @@ export default function Home() {
               boxShadow: '0 4px 20px rgba(16,66,65,0.25)',
             }}
           >
-            Check In Today
+            {checkedInToday ? 'Checked In Today' : 'Check In Today'}
           </button>
         </Link>
 
         {/* Partner activity */}
         <p className="text-center text-[0.9rem] mb-8 leading-relaxed" style={{ color: '#8A8580' }}>
-          {partner.name} checked in {partner.lastCheckIn}.<br />
-          Keep your streak going! 🌱
+          {partnerLast ? (
+            <>
+              {partnerName} checked in {relativeTime(partnerLast.createdAt)}.<br />
+              Keep your streak going! 🌱
+            </>
+          ) : (
+            <>
+              {partnerName} hasn't checked in yet.<br />
+              Be the one who goes first.
+            </>
+          )}
         </p>
 
         {/* Streak stats */}
@@ -158,7 +207,7 @@ export default function Home() {
               <CustomIcon size={24} color="#104241" />
             </div>
             <p className="text-[1.5rem]" style={{ color: '#104241', fontWeight: 700 }}>
-              {currentUser.streak}
+              {myStreak}
             </p>
             <p className="text-[0.8rem]" style={{ color: '#8A8580' }}>Your streak</p>
           </div>
@@ -171,21 +220,31 @@ export default function Home() {
               <CustomIcon size={24} color="#A8893F" />
             </div>
             <p className="text-[1.5rem]" style={{ color: '#A8893F', fontWeight: 700 }}>
-              {partner.streak}
+              {partnerStreak}
             </p>
-            <p className="text-[0.8rem]" style={{ color: '#8A8580' }}>{partner.name}'s streak</p>
+            <p className="text-[0.8rem]" style={{ color: '#8A8580' }}>{partnerName}'s streak</p>
           </div>
         </div>
 
-        {/* Not checked in yet */}
-        <p className="text-center mt-6 text-[0.85rem]" style={{ color: '#A8893F' }}>
-          You haven't checked in yet today.
-        </p>
+        {/* Check-in state */}
+        {!checkedInToday && (
+          <p className="text-center mt-6 text-[0.85rem]" style={{ color: '#A8893F' }}>
+            You haven't checked in yet today.
+          </p>
+        )}
 
-        {/* Sign out */}
-        <p className="text-center mt-6 text-[0.85rem]" style={{ color: '#8A8580' }}>
-          Sign out
-        </p>
+        {/* Sign out — a button, never a Link: react-router prefetches Link
+            targets, which would fire a sign-out the user never clicked. */}
+        <div className="text-center mt-6">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-[0.85rem]"
+            style={{ color: '#8A8580' }}
+          >
+            Sign out
+          </button>
+        </div>
 
       </div>
     </div>

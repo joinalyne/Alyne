@@ -75,11 +75,29 @@ export async function ensureProfile(): Promise<void> {
   const timezone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
-  const { error } = await supabase.from('profiles').upsert(
+  // Two statements rather than one upsert, and that is deliberate.
+  //
+  // Migration 0004 restricts writes to `profiles` with column-level GRANTs, so
+  // a user cannot set their own is_admin or plan. Postgres requires *table*-level
+  // UPDATE privilege for `ON CONFLICT DO UPDATE`, and column-level grants do not
+  // satisfy it, so a plain upsert fails with 42501. `ignoreDuplicates` compiles
+  // to `ON CONFLICT DO NOTHING`, which needs only INSERT.
+  const { error: insertError } = await supabase.from('profiles').upsert(
     { id: user.id, email: user.email ?? null, timezone },
-    { onConflict: 'id', ignoreDuplicates: false },
+    { onConflict: 'id', ignoreDuplicates: true },
   );
-  if (error) console.error('[supabase] ensureProfile failed:', error.message);
+  if (insertError) {
+    console.error('[supabase] ensureProfile insert failed:', insertError.message);
+    return;
+  }
+
+  // Keep the timezone current for a user who has moved, which the
+  // do-nothing insert above will not have touched for an existing profile.
+  const { error: tzError } = await supabase
+    .from('profiles')
+    .update({ timezone })
+    .eq('id', user.id);
+  if (tzError) console.error('[supabase] ensureProfile timezone failed:', tzError.message);
 }
 
 /** Update the user's display name on `profiles`. Returns true on success. */

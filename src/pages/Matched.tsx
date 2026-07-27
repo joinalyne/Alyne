@@ -1,19 +1,33 @@
 import { AlyneWordmark } from '../components/AlyneWordmark';
-import { Link } from 'react-router';
+import { Avatar } from '../components/Avatar';
+import { Link, Navigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { getPartnerSnapshot, type PartnerSnapshot } from '../lib/supabase';
+import { goalLabel } from '../lib/goals';
+import { useAuth } from '../contexts/useAuth';
 
 export default function Matched() {
-  // Mock data
-  const currentUser = {
-    name: "You",
-    photo: "https://images.unsplash.com/photo-1581564018992-95e729d4940e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXBweSUyMHdvbWFuJTIwcG9ydHJhaXQlMjBuYXR1cmFsfGVufDF8fHx8MTc3NTA2ODc4Nnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-  };
+  const { profile } = useAuth();
+  const [snapshot, setSnapshot] = useState<PartnerSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const partner = {
-    name: "Jamie",
-    photo: "https://images.unsplash.com/photo-1640653583383-72b60809f273?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmllbmRseSUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwxfHx8fDE3NzUwNjg3ODd8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-  };
+  useEffect(() => {
+    let active = true;
+    getPartnerSnapshot().then((result) => {
+      if (!active) return;
+      setSnapshot(result);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
-  const sharedGoal = "Practice daily meditation";
+  if (loading) return null;
+
+  // Landing here without a match means the match ended, or the URL was typed
+  // directly. Home handles the unmatched state properly, so defer to it.
+  if (!snapshot) return <Navigate to="/home" replace />;
+
+  const partnerName = snapshot.partner.displayName ?? 'your partner';
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -28,12 +42,7 @@ export default function Matched() {
         <div className="flex items-center justify-center gap-6 pt-4">
           {/* Current User */}
           <div className="flex flex-col items-center">
-            <img
-              src={currentUser.photo}
-              alt={currentUser.name}
-              className="w-24 h-24 rounded-full object-cover"
-              style={{ border: '3px solid #104241' }}
-            />
+            <Avatar src={profile?.avatar_url} name={profile?.display_name} size={96} />
           </div>
 
           {/* Connector Line */}
@@ -41,11 +50,10 @@ export default function Matched() {
 
           {/* Partner */}
           <div className="flex flex-col items-center">
-            <img
-              src={partner.photo}
-              alt={partner.name}
-              className="w-24 h-24 rounded-full object-cover"
-              style={{ border: '3px solid #104241' }}
+            <Avatar
+              src={snapshot.partner.avatarUrl}
+              name={snapshot.partner.displayName}
+              size={96}
             />
           </div>
         </div>
@@ -56,7 +64,7 @@ export default function Matched() {
             className="text-[1.45rem] tracking-tight leading-tight"
             style={{ color: '#a8893f', fontWeight: 600 }}
           >
-            You've been matched with {partner.name}!
+            You've been matched with {partnerName}!
           </h1>
           <p
             className="text-[1.05rem] leading-relaxed px-4"
@@ -72,7 +80,7 @@ export default function Matched() {
             Shared Goal
           </p>
           <p className="text-[1.1rem]" style={{ color: '#2b2b2b', fontWeight: 500 }}>
-            {sharedGoal}
+            {goalLabel(snapshot.goal)}
           </p>
         </div>
 
@@ -93,7 +101,7 @@ export default function Matched() {
             </button>
           </Link>
           <p className="text-center text-[0.85rem] pt-4" style={{ color: '#8A8580' }}>
-            {partner.name} will be notified that you've matched.
+            {partnerName} has been notified that you've matched.
           </p>
         </div>
 
