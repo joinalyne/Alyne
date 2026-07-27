@@ -1,43 +1,49 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Supabase client + profile helpers.
+// Supabase client + data access.
 //
-// Works as soon as env vars exist (Vercel project settings or .env.local):
-//   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-// Until then (and until the `profiles` table from Alyne-Schema-Proposal.md is
-// created), every helper no-ops gracefully so the UI keeps working with local
-// state only.
+// The pre-M1 version of this file exported `SupabaseClient | null` and had every
+// helper no-op when env vars were missing, so the UI kept working on local state
+// in "demo mode". That is dangerous now the app is real: a missing or misspelt
+// env var in production would look like a working app that silently saves
+// nothing. Fail loudly at startup instead.
 //
-// TODO(Jerome): auth wiring (sign-up/log-in, sessions, verification) lives with
-// you — these helpers assume an authenticated user and just touch `profiles`
-// and Storage. Swap `DEMO_USER_ID` for the real session user id when auth lands.
+// .trim() because a key pasted or CLI-added into an env store routinely carries
+// a trailing newline, which produces a baffling 401 at runtime.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const url = import.meta.env.VITE_SUPABASE_URL?.trim();
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
-export const supabase: SupabaseClient | null =
-  url && anonKey ? createClient(url, anonKey) : null;
-
-/** TODO(Jerome): replace with the authenticated user's id from the session. */
-const DEMO_USER_ID = 'demo-user';
-
-async function currentUserId(): Promise<string> {
-  if (supabase) {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) return data.user.id;
-  }
-  return DEMO_USER_ID;
+if (!url || !anonKey) {
+  throw new Error(
+    'Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see .env.example).',
+  );
 }
+
+export const supabase = createClient(url, anonKey);
+
+/** The six goals, matching the `goal` enum in the database. */
+export type Goal =
+  | 'fitness'
+  | 'writing'
+  | 'learning'
+  | 'quitting'
+  | 'mindfulness'
+  | 'other';
+
+async function requireUserId(): Promise<string> {
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) throw new Error('Not signed in.');
+  return data.user.id;
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
 
 /** Send a password-reset email. The link returns the user to /reset-password. */
 export async function requestPasswordReset(email: string): Promise<boolean> {
-  if (!supabase) {
-    console.info('[supabase] not configured — reset email not sent (demo mode)');
-    return true; // let the UI show the confirmation state in demo mode
-  }
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     redirectTo: `${window.location.origin}/reset-password`,
   });
   if (error) console.error('[supabase] resetPasswordForEmail failed:', error.message);
@@ -46,22 +52,39 @@ export async function requestPasswordReset(email: string): Promise<boolean> {
 
 /** Set a new password (valid during the recovery session from the email link). */
 export async function updatePassword(newPassword: string): Promise<boolean> {
-  if (!supabase) {
-    console.info('[supabase] not configured — password not updated (demo mode)');
-    return true;
-  }
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) console.error('[supabase] updateUser(password) failed:', error.message);
   return !error;
 }
 
+// ── Profile ──────────────────────────────────────────────────────────────────
+
+/**
+ * Create the profile row if this user does not have one yet.
+ *
+ * Timezone is captured from the browser because it drives the streak day
+ * boundary: `check_ins.local_date` is the user's local date, so a UTC default
+ * would roll the streak over at the wrong moment for anyone west of Greenwich
+ * — which is most of this user base.
+ */
+export async function ensureProfile(): Promise<void> {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return;
+
+  const timezone =
+    Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+  const { error } = await supabase.from('profiles').upsert(
+    { id: user.id, email: user.email ?? null, timezone },
+    { onConflict: 'id', ignoreDuplicates: false },
+  );
+  if (error) console.error('[supabase] ensureProfile failed:', error.message);
+}
+
 /** Update the user's display name on `profiles`. Returns true on success. */
 export async function updateDisplayName(name: string): Promise<boolean> {
-  if (!supabase) {
-    console.info('[supabase] not configured — display name saved locally only');
-    return false;
-  }
-  const id = await currentUserId();
+  const id = await requireUserId();
   const { error } = await supabase
     .from('profiles')
     .update({ display_name: name, updated_at: new Date().toISOString() })
@@ -70,16 +93,26 @@ export async function updateDisplayName(name: string): Promise<boolean> {
   return !error;
 }
 
+/** Persist the chosen goal. Returns true on success. */
+export async function updateGoal(goal: Goal): Promise<boolean> {
+  const id = await requireUserId();
+  const { error } = await supabase
+    .from('profiles')
+    .update({ current_goal: goal, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) console.error('[supabase] updateGoal failed:', error.message);
+  return !error;
+}
+
 /**
  * Upload a new avatar to the `avatars` Storage bucket and save its public URL
  * on `profiles.avatar_url`. Returns the URL to show, or null on failure.
+ *
+ * The `{user_id}/` prefix is load-bearing: the storage RLS policy checks the
+ * first path segment against auth.uid(). Flatten the path and uploads 403.
  */
 export async function uploadAvatar(file: File): Promise<string | null> {
-  if (!supabase) {
-    console.info('[supabase] not configured — avatar previewed locally only');
-    return null;
-  }
-  const id = await currentUserId();
+  const id = await requireUserId();
   const ext = file.name.split('.').pop() ?? 'jpg';
   const path = `${id}/avatar-${Date.now()}.${ext}`;
 
@@ -101,4 +134,114 @@ export async function uploadAvatar(file: File): Promise<string | null> {
   if (profileError) console.error('[supabase] avatar_url save failed:', profileError.message);
 
   return publicUrl;
+}
+
+// ── Matching ─────────────────────────────────────────────────────────────────
+
+/**
+ * Join the queue and pair with the next waiting user on the same goal.
+ * Returns the match id, or null if nobody is available and the caller is now
+ * waiting. Safe to call repeatedly: an already-matched user gets their
+ * existing match back rather than a second one.
+ */
+export async function enqueueAndMatch(): Promise<string | null> {
+  const { data, error } = await supabase.rpc('enqueue_and_match');
+  if (error) {
+    console.error('[supabase] enqueue_and_match failed:', error.message);
+    throw new Error(error.message);
+  }
+  return (data as string | null) ?? null;
+}
+
+/** Cancel a pending search. */
+export async function leaveQueue(): Promise<void> {
+  const { error } = await supabase.rpc('leave_queue');
+  if (error) console.error('[supabase] leave_queue failed:', error.message);
+}
+
+export type PartnerSnapshot = {
+  matchId: string;
+  goal: Goal;
+  matchedSince: string;
+  partner: {
+    id: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    currentStreak: number;
+    lastCheckInDate: string | null;
+  };
+  /** The partner's most recent check-in, if they have one. */
+  partnerLatestCheckIn: {
+    type: 'photo' | 'voice' | 'text';
+    body: string | null;
+    mediaUrl: string | null;
+    createdAt: string;
+  } | null;
+};
+
+/**
+ * Everything Home and Matched need about the current partnership, or null if
+ * the user is not currently matched.
+ *
+ * Deliberately three plain queries rather than PostgREST embeds: embedded joins
+ * have a habit of returning stale values straight after a write, and the
+ * partner's streak is read immediately after a check-in.
+ */
+export async function getPartnerSnapshot(): Promise<PartnerSnapshot | null> {
+  const me = await requireUserId();
+
+  const { data: match, error: matchError } = await supabase
+    .from('matches')
+    .select('id, goal, user_a, user_b, created_at')
+    .eq('status', 'active')
+    .or(`user_a.eq.${me},user_b.eq.${me}`)
+    .maybeSingle();
+
+  if (matchError) {
+    console.error('[supabase] match lookup failed:', matchError.message);
+    return null;
+  }
+  if (!match) return null;
+
+  const partnerId = match.user_a === me ? match.user_b : match.user_a;
+
+  const { data: partner, error: partnerError } = await supabase
+    .from('profiles')
+    .select('id, display_name, avatar_url, current_streak, last_check_in_date')
+    .eq('id', partnerId)
+    .maybeSingle();
+
+  if (partnerError || !partner) {
+    console.error('[supabase] partner lookup failed:', partnerError?.message);
+    return null;
+  }
+
+  const { data: latest } = await supabase
+    .from('check_ins')
+    .select('type, body, media_url, created_at')
+    .eq('user_id', partnerId)
+    .order('local_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return {
+    matchId: match.id,
+    goal: match.goal as Goal,
+    matchedSince: match.created_at,
+    partner: {
+      id: partner.id,
+      displayName: partner.display_name,
+      avatarUrl: partner.avatar_url,
+      currentStreak: partner.current_streak,
+      lastCheckInDate: partner.last_check_in_date,
+    },
+    partnerLatestCheckIn: latest
+      ? {
+          type: latest.type,
+          body: latest.body,
+          mediaUrl: latest.media_url,
+          createdAt: latest.created_at,
+        }
+      : null,
+  };
 }

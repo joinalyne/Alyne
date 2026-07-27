@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import Auth from "./pages/Auth";
+import CheckEmail from "./pages/CheckEmail";
 import ProfileSetup from "./pages/ProfileSetup";
 import GoalSelection from "./pages/GoalSelection";
 import FindingPartner from "./pages/FindingPartner";
@@ -11,54 +12,108 @@ import HomeEmpty from "./pages/HomeEmpty";
 import Admin from "./pages/Admin";
 import ResetPassword from "./pages/ResetPassword";
 import Upgrade from "./pages/Upgrade";
+import { RequireAuth, RequireAdmin, RedirectIfSignedIn } from "./components/RequireAuth";
 
+// `requireOnboarded={false}` on the onboarding screens themselves: the guard
+// redirects an un-onboarded user *to* these routes, so demanding a completed
+// profile here would loop.
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: Auth,
+    element: (
+      <RedirectIfSignedIn>
+        <Auth />
+      </RedirectIfSignedIn>
+    ),
   },
   {
-    path: "/profile-setup",
-    Component: ProfileSetup,
+    path: "/check-email",
+    Component: CheckEmail,
   },
   {
-    path: "/goal-selection",
-    Component: GoalSelection,
-  },
-  {
-    path: "/finding-partner",
-    Component: FindingPartner,
-  },
-  {
-    path: "/matched",
-    Component: Matched,
-  },
-  {
-    path: "/home",
-    Component: Home,
-  },
-  {
-    path: "/check-in",
-    Component: CheckIn,
-  },
-  {
-    path: "/settings",
-    Component: Settings,
-  },
-  {
-    path: "/home-empty",
-    Component: HomeEmpty,
-  },
-  {
-    path: "/admin",
-    Component: Admin,
-  },
-  {
+    // Reached from an emailed recovery link, so it must stay public: the user
+    // is not signed in when they arrive.
     path: "/reset-password",
     Component: ResetPassword,
   },
   {
+    path: "/profile-setup",
+    element: (
+      <RequireAuth requireOnboarded={false}>
+        <ProfileSetup />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/goal-selection",
+    element: (
+      <RequireAuth requireOnboarded={false}>
+        <GoalSelection />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/finding-partner",
+    element: (
+      <RequireAuth>
+        <FindingPartner />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/matched",
+    element: (
+      <RequireAuth>
+        <Matched />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/home",
+    element: (
+      <RequireAuth>
+        <Home />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/check-in",
+    element: (
+      <RequireAuth>
+        <CheckIn />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/settings",
+    element: (
+      <RequireAuth>
+        <Settings />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/home-empty",
+    element: (
+      <RequireAuth>
+        <HomeEmpty />
+      </RequireAuth>
+    ),
+  },
+  {
     path: "/upgrade",
-    Component: Upgrade,
+    element: (
+      <RequireAuth>
+        <Upgrade />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/admin",
+    element: (
+      <RequireAdmin>
+        <Admin />
+      </RequireAdmin>
+    ),
   },
 ]);
