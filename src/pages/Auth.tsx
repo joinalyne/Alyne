@@ -1,147 +1,127 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router'
-import { ImageWithFallback } from '../components/alyne/ImageWithFallback'
-import { supabase } from '../lib/supabase'
+import { AlyneWordmark } from '../components/AlyneWordmark';
+import { useState } from 'react';
+import { Link } from 'react-router';
 
 export default function Auth() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [isSignUp, setIsSignUp] = useState(location.pathname !== '/auth')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [isSignUp, setIsSignUp] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    const trimmedEmail = email.trim()
-
-    try {
-      if (isSignUp) {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: trimmedEmail,
-          password,
-          options: {
-            emailRedirectTo: 'https://alyne-git-main-alyne-s-projects.vercel.app/auth',
-          },
-        })
-
-        if (signUpError) throw signUpError
-
-        if (data.session) {
-          void navigate('/profile-setup')
-          return
-        }
-
-        void navigate('/check-email', { state: { email: trimmedEmail } })
-        return
-      }
-
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      })
-
-      if (signInError) throw signInError
-
-      if (data.session) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('user_id')
-          .eq('user_id', data.session.user.id)
-          .maybeSingle()
-
-        if (profileError) throw profileError
-
-        void navigate(profile ? '/home' : '/profile-setup')
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log(isSignUp ? 'Sign up' : 'Log in', { email, password });
+    // Handle authentication logic here
+  };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-6 py-6">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="w-full max-w-md space-y-8">
+
+        {/* Logo */}
         <div className="text-center">
-          <ImageWithFallback src="/alyne-logo.png" alt="alyne" className="mx-auto mb-3 w-32" />
-          <p className="text-[1rem]" style={{ color: '#B8860B' }}>
+          <AlyneWordmark className="w-24 mx-auto mb-6" />
+          <h1
+            className="text-[1.1rem] tracking-tight"
+            style={{ color: '#a8893f' }}
+          >
             {isSignUp ? 'Your journey starts here.' : 'Welcome back.'}
-          </p>
+          </h1>
         </div>
 
-        {error ? (
-          <p
-            className="mt-4 rounded-2xl bg-red-50 px-4 py-2.5 text-center text-sm text-red-700"
-            role="alert"
-          >
-            {error}
-          </p>
-        ) : null}
+        {/* Auth Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Email Input */}
+          <div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              required
+              className="w-full px-6 py-4 rounded-[1.25rem] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
+              style={{
+                borderColor: 'rgba(43, 43, 43, 0.1)',
+                color: '#2b2b2b',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 2px 12px rgba(43, 43, 43, 0.03)'
+              }}
+            />
+          </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email address"
-            required
-            autoComplete="email"
-            disabled={loading}
-            className="w-full rounded-full bg-white px-6 py-4 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none disabled:opacity-60"
-            style={{ color: '#1D3D38', boxShadow: '0 1px 2px rgba(29, 61, 56, 0.04)' }}
-          />
+          {/* Password Input */}
+          <div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              required
+              className="w-full px-6 py-4 rounded-[1.25rem] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
+              style={{
+                borderColor: 'rgba(43, 43, 43, 0.1)',
+                color: '#2b2b2b',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 2px 12px rgba(43, 43, 43, 0.03)'
+              }}
+            />
+          </div>
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            required
-            minLength={6}
-            autoComplete={isSignUp ? 'new-password' : 'current-password'}
-            disabled={loading}
-            className="w-full rounded-full bg-white px-6 py-4 text-[1rem] placeholder:text-[#9a9a96] focus:outline-none disabled:opacity-60"
-            style={{ color: '#1D3D38', boxShadow: '0 1px 2px rgba(29, 61, 56, 0.04)' }}
-          />
+          {/* Forgot password (log-in mode only) */}
+          {!isSignUp && (
+            <div className="text-right px-2">
+              <Link
+                to="/reset-password"
+                className="text-[0.875rem]"
+                style={{ fontWeight: 600, color: '#a8893f' }}
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
 
+          {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
-            className="mt-5 w-full rounded-full py-4 text-[1.05rem] font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-            style={{ backgroundColor: '#1D3D38', boxShadow: '0 4px 16px rgba(29, 61, 56, 0.18)' }}
+            className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98]"
+            style={{
+              backgroundColor: '#104241',
+              color: '#FFFFFF',
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
+              marginTop: '2rem'
+            }}
           >
-            {loading ? 'Please wait…' : isSignUp ? 'Get Started' : 'Log In'}
+            {isSignUp ? 'Get Started' : 'Log In'}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-[0.9rem]" style={{ color: '#1D3D38' }}>
-          {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+        {/* Toggle Link */}
+        <div className="text-center pt-4">
           <button
-            type="button"
-            disabled={loading}
-            className="font-semibold disabled:opacity-60"
-            style={{ color: '#B8860B' }}
-            onClick={() => {
-              setIsSignUp((v) => !v)
-              setError(null)
-            }}
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-[0.95rem] transition-opacity hover:opacity-100"
+            style={{ color: '#8A8580' }}
           >
-            {isSignUp ? 'Log in' : 'Sign up'}
+            {isSignUp ? (
+              <>Already have an account? <span style={{ fontWeight: 600, color: '#a8893f' }}>Log in</span></>
+            ) : (
+              <>Don't have an account? <span style={{ fontWeight: 600, color: '#a8893f' }}>Sign up</span></>
+            )}
           </button>
-        </p>
+        </div>
 
-        <div className="mt-8 text-center">
-          <Link to="/home" className="text-[0.9rem]" style={{ color: '#9a9a96' }}>
+        {/* Optional: Link back to landing */}
+        <div className="text-center pt-8">
+          <Link
+            to="/"
+            className="text-[0.85rem] transition-opacity hover:opacity-100"
+            style={{ color: '#8A8580' }}
+          >
             ← Back to home
           </Link>
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,0 +1,23 @@
+<svg width="140" height="50" viewBox="0 0 140 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 'a' -->
+  <path d="M8 32 Q8 22, 16 22 Q24 22, 24 28 L24 38 Q24 40, 22 40 Q20 40, 20 38 L20 28 Q20 26, 16 26 Q12 26, 12 28 L12 38 Q12 40, 10 40 Q8 40, 8 38 Z" fill="#1A3328"/>
+  <circle cx="16" cy="19" r="2.5" fill="#a8893f"/>
+  
+  <!-- 'l' -->
+  <rect x="32" y="16" width="4" height="24" rx="2" fill="#1A3328"/>
+  
+  <!-- 'y' -->
+  <path d="M44 22 Q44 22, 48 22 L48 34 Q48 40, 52 44 Q52 46, 50 46 Q48 46, 46 42 Q44 38, 44 34 Z" fill="#1A3328"/>
+  <path d="M56 22 Q56 22, 60 22 Q60 22, 60 34 Q60 38, 58 42 Q56 46, 54 46 Q52 46, 52 44" fill="#1A3328"/>
+  <circle cx="52" cy="19" r="2.5" fill="#a8893f"/>
+  
+  <!-- 'n' -->
+  <path d="M70 38 Q70 40, 68 40 Q66 40, 66 38 L66 22 Q66 22, 70 22 L70 28 Q70 26, 74 26 Q78 26, 78 28 L78 38 Q78 40, 76 40 Q74 40, 74 38 L74 28 Q74 26, 74 26 Q70 26, 70 28 Z" fill="#1A3328"/>
+  
+  <!-- 'e' -->
+  <path d="M88 30 L100 30 Q100 26, 96 26 Q92 26, 88 28 M88 30 Q88 34, 92 34 Q96 34, 100 32 M96 22 Q104 22, 104 30 Q104 38, 96 38 Q88 38, 88 30 Q88 22, 96 22" fill="#1A3328"/>
+  <line x1="88" y1="30" x2="100" y2="30" stroke="#1A3328" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Connecting line underneath as accent -->
+  <path d="M10 45 Q70 48, 95 45" stroke="#104241" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+</svg>

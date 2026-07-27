@@ -1,269 +1,193 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { AlyneCustomIcon } from '../components/alyne/AlyneCustomIcon'
-import { ImageWithFallback } from '../components/alyne/ImageWithFallback'
-import { supabase } from '../lib/supabase'
+import { Settings } from 'lucide-react';
+import { Link } from 'react-router';
+import { CustomIcon } from '../components/CustomIcon';
+import { AlyneWordmark } from '../components/AlyneWordmark';
 
-function formatRelative(iso: string) {
-  const diffMs = Math.max(0, Date.now() - new Date(iso).getTime())
-  const minutes = Math.floor(diffMs / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
-  const days = Math.floor(hours / 24)
-  return `${days} day${days === 1 ? '' : 's'} ago`
-}
+const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
-function isToday(iso: string) {
-  const start = new Date()
-  start.setHours(0, 0, 0, 0)
-  return new Date(iso).getTime() >= start.getTime()
-}
-
-function ymdLocal(d: Date) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function computeStreak(rowsDesc: { created_at: string }[]) {
-  if (rowsDesc.length === 0) return 0
-
-  const dates = new Set(rowsDesc.map((r) => ymdLocal(new Date(r.created_at))))
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const yesterday = new Date(today)
-  yesterday.setDate(today.getDate() - 1)
-
-  let cursor: Date
-  if (dates.has(ymdLocal(today))) cursor = new Date(today)
-  else if (dates.has(ymdLocal(yesterday))) cursor = new Date(yesterday)
-  else return 0
-
-  let streak = 0
-  while (dates.has(ymdLocal(cursor))) {
-    streak += 1
-    cursor.setDate(cursor.getDate() - 1)
-  }
-  return streak
-}
-
-type LatestCheckIn = { message: string; created_at: string }
-
-/** Home dashboard from Figma Make — @see https://www.figma.com/make/GEiM8YhB9h1opQNaQ7FGLH/Design-Alyne-Home-Screen */
 export default function Home() {
-  const navigate = useNavigate()
-  const [latest, setLatest] = useState<LatestCheckIn | null>(null)
-  const [streak, setStreak] = useState<number | null>(null)
-  const [loaded, setLoaded] = useState(false)
-
-  async function handleSignOut() {
-    await supabase.auth.signOut()
-    void navigate('/')
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user || cancelled) {
-        if (!cancelled) setLoaded(true)
-        return
-      }
-      const { data } = await supabase
-        .from('checkins')
-        .select('message, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(365)
-
-      if (cancelled) return
-      const rows = data ?? []
-      setLatest(rows[0] ?? null)
-      setStreak(computeStreak(rows))
-      setLoaded(true)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const currentUser = {
-    name: 'You',
-    photo:
-      'https://images.unsplash.com/photo-1581564018992-95e729d4940e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXBweSUyMHdvbWFuJTIwcG9ydHJhaXQlMjBuYXR1cmFsfGVufDF8fHx8MTc3NTA2ODc4Nnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
-  }
-
-  const streakDisplay = streak ?? '—'
-  const streakLabel = streak === 1 ? 'day' : 'days'
+    name: "You",
+    photo: "https://images.unsplash.com/photo-1581564018992-95e729d4940e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXBweSUyMHdvbWFuJTIwcG9ydHJhaXQlMjBuYXR1cmFsfGVufDF8fHx8MTc3NTA2ODc4Nnww&ixlib=rb-4.1.0&q=80&w=400",
+    streak: 0,
+    checkedInToday: false,
+  };
 
   const partner = {
-    name: 'Jamie',
-    photo:
-      'https://images.unsplash.com/photo-1640653583383-72b60809f273?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmllbmRseSUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwxfHx8fDE3NzUwNjg3ODd8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+    name: "Jamie",
+    photo: "https://images.unsplash.com/photo-1640653583383-72b60809f273?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcmllbmRseSUyMG1hbiUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwxfHx8fDE3NzUwNjg3ODd8MA&ixlib=rb-4.1.0&q=80&w=400",
     streak: 12,
-    lastCheckIn: '2 hours ago',
-  }
+    checkedInToday: true,
+    lastCheckIn: "2 hours ago",
+  };
 
-  const sharedGoal = 'Practice daily meditation'
+  const sharedGoal = "Practice daily meditation";
 
   return (
-    <div className="flex min-h-dvh items-start justify-center bg-background px-6 pb-6 pt-4">
-      <div className="w-full max-w-md space-y-4">
-        <div className="space-y-1 text-center">
-          <ImageWithFallback src="/alyne-logo.png" alt="Alyne" className="mx-auto w-24" />
-          <p className="text-[0.9rem] text-[#2b2b2b]/60">
-            Your partner&apos;s counting on you today.
-          </p>
+    <div className="min-h-screen flex items-start justify-center p-6 bg-background">
+      <div className="w-full max-w-md pt-12">
+
+        {/* Logo + settings */}
+        <div className="relative flex items-center justify-center mb-3">
+          <AlyneWordmark className="w-24 mx-auto" />
+          <Link
+            to="/settings"
+            className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center w-10 h-10"
+          >
+            <Settings size={22} strokeWidth={1.5} color="#2B2B2B" />
+          </Link>
         </div>
 
+        {/* Subtitle */}
+        <p className="text-center text-[0.95rem] mb-8" style={{ color: '#8A8580' }}>
+          Your partner's counting on you today.
+        </p>
+
+        {/* Partner card */}
         <div
-          className="rounded-[1.5rem] bg-white p-5"
-          style={{ boxShadow: '0 2px 16px rgba(43, 43, 43, 0.04)' }}
+          className="mb-6"
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '1.25rem',
+            padding: '32px 28px',
+            boxShadow: CARD_SHADOW,
+          }}
         >
-          <div className="mb-4 flex items-center justify-center gap-5">
+          {/* Avatars */}
+          <div className="flex items-center justify-center gap-8 mb-6">
+            {/* You */}
             <div className="flex flex-col items-center">
               <div className="relative">
                 <img
                   src={currentUser.photo}
                   alt={currentUser.name}
-                  className="h-16 w-16 rounded-full object-cover"
+                  className="w-20 h-20 rounded-full object-cover"
                   style={{ border: '3px solid #104241' }}
                 />
-                <div className="absolute -bottom-1 -right-1 rounded-full bg-white p-1.5 shadow-sm">
-                  <AlyneCustomIcon size={14} color="#104241" />
+                <div
+                  className="absolute -bottom-1 -right-1 bg-white rounded-full p-1.5"
+                  style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}
+                >
+                  <CustomIcon size={13} color="#104241" />
                 </div>
               </div>
-              <p className="mt-2 text-[0.9rem] font-medium text-[#2b2b2b]">{currentUser.name}</p>
-              <p className="text-[0.85rem] text-[#2b2b2b]/60">
-                {streakDisplay} {streakLabel}
+              <p className="mt-3 text-[0.9rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>
+                {currentUser.name}
+              </p>
+              <p className="text-[0.82rem]" style={{ color: '#8A8580' }}>
+                {currentUser.streak} days
               </p>
             </div>
 
-            <div
-              className="h-0.5 w-8 rounded-full"
-              style={{ backgroundColor: '#104241', opacity: 0.2 }}
-              aria-hidden
-            />
+            {/* Divider */}
+            <div className="h-px w-8 rounded-full" style={{ backgroundColor: '#a8893f' }} />
 
+            {/* Partner */}
             <div className="flex flex-col items-center">
               <div className="relative">
                 <img
                   src={partner.photo}
                   alt={partner.name}
-                  className="h-16 w-16 rounded-full object-cover"
-                  style={{ border: '3px solid #a8893f' }}
+                  className="w-20 h-20 rounded-full object-cover"
+                  style={{ border: '3px solid #A8893F' }}
                 />
-                <div className="absolute -bottom-1 -right-1 rounded-full bg-white p-1.5 shadow-sm">
-                  <AlyneCustomIcon size={14} color="#a8893f" />
+                <div
+                  className="absolute -bottom-1 -right-1 bg-white rounded-full p-1.5"
+                  style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}
+                >
+                  <CustomIcon size={13} color="#A8893F" />
                 </div>
               </div>
-              <p className="mt-2 text-[0.9rem] font-medium text-[#2b2b2b]">{partner.name}</p>
-              <p className="text-[0.85rem] text-[#2b2b2b]/60">{partner.streak} days</p>
+              <p className="mt-3 text-[0.9rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>
+                {partner.name}
+              </p>
+              <p className="text-[0.82rem]" style={{ color: '#8A8580' }}>
+                {partner.streak} days
+              </p>
             </div>
           </div>
 
+          {/* Shared goal */}
           <div
-            className="border-t pt-3 text-center"
-            style={{ borderColor: 'rgba(43, 43, 43, 0.08)' }}
+            className="text-center pt-5"
+            style={{ borderTop: '1px solid rgba(43,43,43,0.07)' }}
           >
             <p
-              className="mb-1 text-[0.7rem] uppercase tracking-wide text-[#2b2b2b]/50"
-              style={{ letterSpacing: '0.08em' }}
+              className="text-[0.75rem] uppercase tracking-wide mb-2"
+              style={{ color: '#8A8580', fontWeight: 600, letterSpacing: '0.07em' }}
             >
               Shared Goal
             </p>
-            <p className="text-[1rem] font-medium text-[#2b2b2b]">{sharedGoal}</p>
+            <p className="text-[1.1rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>
+              {sharedGoal}
+            </p>
           </div>
         </div>
 
-        <Link to="/check-in" className="block">
-          <span
-            className="flex w-full items-center justify-center rounded-[1.25rem] py-4 text-[1.05rem] font-semibold text-white transition-all duration-200 active:scale-[0.98]"
+        {/* Check In CTA */}
+        <Link to="/check-in">
+          <button
+            className="w-full transition-all duration-200 active:scale-[0.98] mb-6"
             style={{
               backgroundColor: '#104241',
-              boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
+              color: '#FFFFFF',
+              borderRadius: '1.25rem',
+              padding: '18px',
+              fontSize: '1.1rem',
+              fontWeight: 700,
+              boxShadow: '0 4px 20px rgba(16,66,65,0.25)',
             }}
           >
             Check In Today
-          </span>
+          </button>
         </Link>
 
-        <p className="text-center text-[0.85rem] leading-snug text-[#2b2b2b]/65">
-          {partner.name} checked in {partner.lastCheckIn}.{' '}
-          <span className="whitespace-nowrap">Keep your streak going! 🌱</span>
+        {/* Partner activity */}
+        <p className="text-center text-[0.9rem] mb-8 leading-relaxed" style={{ color: '#8A8580' }}>
+          {partner.name} checked in {partner.lastCheckIn}.<br />
+          Keep your streak going! 🌱
         </p>
 
-        <div className="flex items-center justify-center gap-8">
+        {/* Streak stats */}
+        <div className="flex items-center justify-center gap-10">
           <div className="text-center">
             <div
-              className="mb-1 inline-flex h-12 w-12 items-center justify-center rounded-full"
-              style={{ backgroundColor: '#f0f0f0' }}
+              className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-2"
+              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
             >
-              <AlyneCustomIcon size={22} color="#104241" />
+              <CustomIcon size={24} color="#104241" />
             </div>
-            <p className="text-[1.25rem] font-bold leading-tight text-[#104241]">
-              {streakDisplay}
+            <p className="text-[1.5rem]" style={{ color: '#104241', fontWeight: 700 }}>
+              {currentUser.streak}
             </p>
-            <p className="text-[0.75rem] text-[#2b2b2b]/60">Your streak</p>
+            <p className="text-[0.8rem]" style={{ color: '#8A8580' }}>Your streak</p>
           </div>
 
           <div className="text-center">
             <div
-              className="mb-1 inline-flex h-12 w-12 items-center justify-center rounded-full"
-              style={{ backgroundColor: '#f0f0f0' }}
+              className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-2"
+              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
             >
-              <AlyneCustomIcon size={22} color="#a8893f" />
+              <CustomIcon size={24} color="#A8893F" />
             </div>
-            <p className="text-[1.25rem] font-bold leading-tight text-[#a8893f]">
+            <p className="text-[1.5rem]" style={{ color: '#A8893F', fontWeight: 700 }}>
               {partner.streak}
             </p>
-            <p className="text-[0.75rem] text-[#2b2b2b]/60">{partner.name}&apos;s streak</p>
+            <p className="text-[0.8rem]" style={{ color: '#8A8580' }}>{partner.name}'s streak</p>
           </div>
         </div>
 
-        {loaded ? (
-          latest && isToday(latest.created_at) ? (
-            <div
-              className="rounded-[1.25rem] bg-white p-4"
-              style={{ boxShadow: '0 2px 12px rgba(43, 43, 43, 0.04)' }}
-            >
-              <p
-                className="mb-1 text-[0.7rem] uppercase tracking-wide text-[#2b2b2b]/50"
-                style={{ letterSpacing: '0.08em' }}
-              >
-                Your last check-in
-              </p>
-              <p className="mb-1 text-[0.95rem] leading-snug text-[#2b2b2b]">
-                {latest.message}
-              </p>
-              <p className="text-[0.75rem] text-[#2b2b2b]/55">
-                {formatRelative(latest.created_at)}
-              </p>
-            </div>
-          ) : (
-            <p className="text-center text-[0.9rem] text-[#2b2b2b]/65">
-              You haven&apos;t checked in yet today.
-            </p>
-          )
-        ) : null}
+        {/* Not checked in yet */}
+        <p className="text-center mt-6 text-[0.85rem]" style={{ color: '#A8893F' }}>
+          You haven't checked in yet today.
+        </p>
 
-        {/* TODO: temporary — move into a settings / profile menu before launch */}
-        <div className="pt-2 text-center">
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="text-[0.75rem] text-[#2b2b2b]/40 hover:text-[#2b2b2b]/70"
-          >
-            Sign out
-          </button>
-        </div>
+        {/* Sign out */}
+        <p className="text-center mt-6 text-[0.85rem]" style={{ color: '#8A8580' }}>
+          Sign out
+        </p>
+
       </div>
     </div>
-  )
+  );
 }
