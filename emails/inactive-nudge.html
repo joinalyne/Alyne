@@ -12,7 +12,7 @@
        Variables for Jerome:
          {{name}}, {{partner_name}}, {{days}},
          {{avatar_url}}, {{partner_avatar_url}} (defaults as usual)
-       Logo URL assumes production deploy: joinalyne.com/email/alyne-logo.png
+       Logo URL assumes production deploy: {{asset_base}}/alyne-logo.png
        ══════════════════════════════════════════════════════════════════ -->
 </head>
 <body style="margin:0; padding:0; background-color:#f4f4f4;">
@@ -23,7 +23,7 @@
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:100%;">
           <tr>
             <td align="center" style="padding:0 0 28px 0;">
-              <img src="https://joinalyne.com/email/alyne-logo.png" width="120" alt="alyne" style="display:block; width:120px; height:auto; border:0;">
+              <img src="{{asset_base}}/alyne-logo.png" width="120" alt="alyne" style="display:block; width:120px; height:auto; border:0;">
             </td>
           </tr>
           <tr>
@@ -70,7 +70,7 @@
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                       <tr>
                         <td align="center" style="background-color:#104241; border-radius:20px;">
-                          <a href="https://joinalyne.com/app" target="_blank" style="display:block; font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; font-weight:700; color:#FFFFFF; text-decoration:none; padding:17px 24px;">Check In Today</a>
+                          <a href="{{app_url}}" target="_blank" style="display:block; font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; font-weight:700; color:#FFFFFF; text-decoration:none; padding:17px 24px;">Check In Today</a>
                         </td>
                       </tr>
                     </table>

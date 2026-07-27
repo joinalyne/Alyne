@@ -7,28 +7,9 @@ import { Avatar } from '../components/Avatar';
 import { supabase, getPartnerSnapshot, type PartnerSnapshot } from '../lib/supabase';
 import { goalLabel } from '../lib/goals';
 import { useAuth } from '../contexts/useAuth';
+import { todayLocalDate, relativeTime } from '../lib/dates';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
-
-/**
- * Today's date in the browser's timezone, as YYYY-MM-DD.
- *
- * en-CA because it formats as ISO. Deliberately local rather than UTC: it is
- * compared against check_ins.local_date, which is the user's local day.
- */
-function todayLocalDate(): string {
-  return new Date().toLocaleDateString('en-CA');
-}
-
-function relativeTime(iso: string): string {
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-  const days = Math.floor(hours / 24);
-  return `${days} day${days === 1 ? '' : 's'} ago`;
-}
 
 export default function Home() {
   const navigate = useNavigate();

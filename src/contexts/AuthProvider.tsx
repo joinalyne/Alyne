@@ -9,15 +9,28 @@ const PROFILE_COLUMNS =
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+
+  // Two separate flags, combined below.
+  //
+  // The first version tracked a single `loading` and cleared it inside
+  // onAuthStateChange while the profile fetch ran unawaited. Guards then saw
+  // `loading: false` with `profile: null` and read that as "signed in but not
+  // onboarded" — so refreshing /home threw a fully onboarded user back into
+  // profile setup. The fix is that loading must not end until BOTH the session
+  // and the profile have settled. Awaiting inside onAuthStateChange is not an
+  // option; the Supabase client deadlocks if you call it from its own callback.
+  const [sessionResolved, setSessionResolved] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(true)
 
   const userId = session?.user.id ?? null
 
   const loadProfile = useCallback(async (id: string | null) => {
     if (!id) {
       setProfile(null)
+      setProfileLoading(false)
       return
     }
+    setProfileLoading(true)
     // maybeSingle, not single: a user who signed up but abandoned onboarding
     // has no profile row yet, and that is a valid state, not an error.
     const { data, error } = await supabase
@@ -29,19 +42,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       console.error('[auth] could not load profile:', error.message)
       setProfile(null)
-      return
+    } else {
+      setProfile((data as Profile) ?? null)
     }
-    setProfile((data as Profile) ?? null)
+    setProfileLoading(false)
   }, [])
 
+  // Session only. The profile is handled by the effect below, keyed on user id,
+  // so it cannot race with this one.
   useEffect(() => {
     let active = true
 
-    supabase.auth.getSession().then(async ({ data: { session: current } }) => {
+    supabase.auth.getSession().then(({ data: { session: current } }) => {
       if (!active) return
       setSession(current)
-      await loadProfile(current?.user.id ?? null)
-      if (active) setLoading(false)
+      setSessionResolved(true)
     })
 
     const {
@@ -49,17 +64,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return
       setSession(nextSession)
-      // Deliberately not awaited: onAuthStateChange must not block, and the
-      // Supabase client deadlocks if you await its own calls inside the callback.
-      void loadProfile(nextSession?.user.id ?? null)
-      setLoading(false)
+      setSessionResolved(true)
     })
 
     return () => {
       active = false
       subscription.unsubscribe()
     }
-  }, [loadProfile])
+  }, [])
+
+  useEffect(() => {
+    if (!sessionResolved) return
+    void loadProfile(userId)
+  }, [sessionResolved, userId, loadProfile])
 
   const refreshProfile = useCallback(async () => {
     await loadProfile(userId)
@@ -70,10 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user: session?.user ?? null,
       profile,
-      loading,
+      loading: !sessionResolved || profileLoading,
       refreshProfile,
     }),
-    [session, profile, loading, refreshProfile],
+    [session, profile, sessionResolved, profileLoading, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -1,9 +1,28 @@
 # Alyne email templates — where each one goes
 
 All five share the approved treatment: grey #f4f4f4 background, white 20px-radius card,
-gold accents, green #104241 CTA, 1px avatar rings, hosted logo at
-`joinalyne.com/email/alyne-logo.png` (file: `public/email/alyne-logo.png`;
-default avatar: `public/email/default-avatar.png`).
+gold accents, green #104241 CTA, 1px avatar rings.
+
+## Where the images come from — read this before changing a host
+
+`joinalyne.com` is the Wix marketing site. The image files live in this repo at
+`public/email/`, so they deploy to the **app**, not to the marketing domain.
+The templates originally hardcoded `https://joinalyne.com/email/alyne-logo.png`,
+which 404s. Every email would have arrived with a broken logo.
+
+Hosts are now variables, so the app's address is set in one place:
+
+| Placeholder      | Meaning                          | Set by                          |
+|------------------|----------------------------------|---------------------------------|
+| `{{asset_base}}` | where `/email/*.png` is served   | `APP_URL` + `/email`, at send   |
+| `{{app_url}}`    | the CTA target, i.e. the app     | `APP_URL` env var               |
+| `{{ .SiteURL }}` | Supabase's own variable          | Auth -> URL Configuration       |
+
+The two Supabase-pasted templates use `{{ .SiteURL }}` and so need no
+substitution at all — they follow whatever Site URL is configured.
+
+Footer links to `https://joinalyne.com` are left as they are: those point at the
+marketing site deliberately, and that domain does resolve.
 
 ## Supabase templates (Kane pastes — 5 minutes)
 Supabase Dashboard → Authentication → Email Templates:
@@ -19,4 +38,4 @@ Sent by application code via Resend's API at these events:
 - `inactive-nudge.html`        → partner silent 3+ days (send to the ACTIVE user;
                                  pair is simultaneously flagged in /admin)
 Variables are documented in the comment block at the top of each file.
-Avatar variables default to `https://joinalyne.com/email/default-avatar.png` when unset.
+Avatar variables default to `{{asset_base}}/default-avatar.png` when unset.
