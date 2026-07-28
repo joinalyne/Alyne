@@ -16,7 +16,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import { render, matchNotificationVars } from './_email';
+// The .js extension is required, not optional. package.json sets
+// "type": "module", so Node ESM will not resolve an extensionless specifier at
+// runtime even though TypeScript accepts one. Without it the whole function
+// fails to import and every request returns FUNCTION_INVOCATION_FAILED, before
+// the handler runs — which looks like a broken endpoint rather than a bad import.
+import { render, matchNotificationVars } from './_email.js';
 
 type Req = { method?: string; body?: unknown; headers: Record<string, string | string[] | undefined> };
 type Res = {
