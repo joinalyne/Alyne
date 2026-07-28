@@ -301,3 +301,89 @@ export async function notifyMatch(matchId: string): Promise<void> {
     console.error('[match-email] request failed:', err);
   }
 }
+
+export type CheckInType = 'photo' | 'voice' | 'text';
+
+export type CheckInResult =
+  | { ok: true }
+  | { ok: false; alreadyToday: true }
+  | { ok: false; alreadyToday: false; message: string };
+
+/**
+ * Save today's check-in.
+ *
+ * `local_date` is the user's LOCAL date, not UTC. It is the streak day
+ * boundary, so using toISOString() here would roll a Vancouver user over seven
+ * hours early. en-CA because it formats as ISO.
+ *
+ * One per local day is enforced by a unique index rather than by checking
+ * first, so a double tap cannot slip two rows through. 23505 is that index
+ * firing and is reported as a normal outcome, not an error.
+ */
+export async function saveCheckIn(
+  type: CheckInType,
+  body: string,
+  media?: File | Blob,
+): Promise<CheckInResult> {
+  try {
+    const userId = await requireUserId();
+    const localDate = new Date().toLocaleDateString('en-CA');
+
+    let mediaUrl: string | null = null;
+    if (media) {
+      // The {user_id}/ prefix is load-bearing: storage RLS checks the first
+      // path segment against auth.uid().
+      const extension =
+        media instanceof File ? (media.name.split('.').pop() ?? 'bin')
+        : type === 'voice' ? 'webm'
+        : 'jpg';
+      const path = `${userId}/${localDate}-${type}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('check-ins')
+        .upload(path, media, { upsert: true, contentType: media.type || undefined });
+
+      if (uploadError) {
+        return { ok: false, alreadyToday: false, message: 'Could not upload that. Please try again.' };
+      }
+      // A private bucket, so store the path. A signed URL is minted on read.
+      mediaUrl = path;
+    }
+
+    const { error } = await supabase.from('check_ins').insert({
+      user_id: userId,
+      match_id: null,
+      type,
+      body: body.trim() || null,
+      media_url: mediaUrl,
+      local_date: localDate,
+    });
+
+    if (error) {
+      if (error.code === '23505') return { ok: false, alreadyToday: true };
+      return { ok: false, alreadyToday: false, message: error.message };
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      alreadyToday: false,
+      message: err instanceof Error ? err.message : 'Something went wrong.',
+    };
+  }
+}
+
+/**
+ * A short-lived URL for private check-in media. The bucket is not public, so
+ * the stored path cannot be rendered directly.
+ */
+export async function signedCheckInUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from('check-ins')
+    .createSignedUrl(path, 60 * 60);
+  if (error) {
+    console.error('[supabase] could not sign check-in media URL:', error.message);
+    return null;
+  }
+  return data.signedUrl;
+}

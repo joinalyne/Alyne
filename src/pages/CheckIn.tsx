@@ -1,7 +1,8 @@
 import { Camera, Mic, Edit3, ChevronLeft } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { getPartnerSnapshot } from '../lib/supabase';
+import { getPartnerSnapshot, saveCheckIn, type CheckInType } from '../lib/supabase';
+import { useAuth } from '../contexts/useAuth';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
@@ -9,6 +10,12 @@ export default function CheckIn() {
   const navigate = useNavigate();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const { refreshProfile } = useAuth();
 
   // Real partner, not the mock "Jamie". Saving a check-in is M2 — see
   // handleSend — but showing a signed-in user a stranger's name is not a
@@ -38,10 +45,39 @@ export default function CheckIn() {
     { id: 'text',  title: 'Quick Update', subtitle: 'A few words is enough',  icon: Edit3 },
   ];
 
-  const handleSend = () => {
-    // M2: photo/voice/text check-in backend, one-per-day enforcement and the
-    // nightly streak job. The button is disabled until then rather than
-    // silently discarding what someone typed.
+  const handleSend = async () => {
+    if (!selectedOption) return;
+    setError(null);
+    setSaving(true);
+    try {
+      const result = await saveCheckIn(
+        selectedOption as CheckInType,
+        message,
+        photoFile ?? undefined,
+      );
+
+      if (result.ok) {
+        // Refresh so Home shows the streak this check-in just advanced.
+        await refreshProfile();
+        navigate('/home', { replace: true });
+        return;
+      }
+
+      setError(
+        result.alreadyToday
+          ? "You've already checked in today. Come back tomorrow."
+          : result.message,
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onPhotoPicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
   };
 
   return (
@@ -75,7 +111,13 @@ export default function CheckIn() {
             return (
               <button
                 key={option.id}
-                onClick={() => setSelectedOption(isSelected ? null : option.id)}
+                type="button"
+                onClick={() => {
+                  const next = isSelected ? null : option.id;
+                  setSelectedOption(next);
+                  setError(null);
+                  if (next === 'photo') photoInputRef.current?.click();
+                }}
                 className="w-full text-left transition-all duration-200 active:scale-[0.98]"
                 style={{
                   backgroundColor: '#FFFFFF',
@@ -133,13 +175,49 @@ export default function CheckIn() {
           />
         </div>
 
+        {/* Hidden picker — opened by choosing the Photo card. */}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onPhotoPicked}
+        />
+
+        {photoPreview ? (
+          <div className="mt-5">
+            <img
+              src={photoPreview}
+              alt="Your check-in photo"
+              className="w-full rounded-[1.25rem] object-cover"
+              style={{ maxHeight: '240px', boxShadow: CARD_SHADOW }}
+            />
+          </div>
+        ) : null}
+
+        {error ? (
+          <p
+            role="alert"
+            className="mt-5 rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
+            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
+          >
+            {error}
+          </p>
+        ) : null}
+
         {/* Send button */}
         <div className="mt-8 space-y-3">
           <button
             type="button"
-            onClick={handleSend}
-            disabled
-            title="Saving check-ins arrives in the next milestone"
+            onClick={() => void handleSend()}
+            disabled={saving || !selectedOption || (selectedOption === 'voice')}
+            title={
+              selectedOption === 'voice'
+                ? 'Voice notes are not recordable yet'
+                : !selectedOption
+                  ? 'Choose how you want to check in'
+                  : undefined
+            }
             className="w-full transition-all duration-200 disabled:opacity-50"
             style={{
               backgroundColor: '#104241',
@@ -151,7 +229,7 @@ export default function CheckIn() {
               boxShadow: '0 4px 20px rgba(16,66,65,0.25)',
             }}
           >
-            Send to {partner.name}
+            {saving ? 'Sending…' : `Send to ${partner.name}`}
           </button>
           <p className="text-center text-[0.85rem]" style={{ color: '#8A8580' }}>
             {partner.name} will be notified when you check in.

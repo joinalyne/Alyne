@@ -203,6 +203,67 @@ async function main() {
     stampRow?.match_email_sent_at !== null,
     stampRow?.match_email_sent_at ? 'stamp intact' : 'STAMP CLEARED');
 
+  console.log('\n— streak accounting (M2) —');
+  // A fresh user, because the check-in above already gave Ada a streak.
+  const dee = await makeUser('dee', 'Dee', 'learning');
+  const day = (offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toLocaleDateString('en-CA');
+  };
+  const streakOf = async (id) => {
+    const { data } = await admin
+      .from('profiles').select('current_streak, last_check_in_date').eq('id', id).single();
+    return data;
+  };
+  const checkIn = (user, localDate) =>
+    user.client.from('check_ins')
+      .insert({ user_id: user.id, type: 'text', body: 'seed', local_date: localDate });
+
+  await checkIn(dee, day(-1));
+  let s = await streakOf(dee.id);
+  check('first check-in sets the streak to 1, not 0', s.current_streak === 1,
+    `streak ${s.current_streak}, last ${s.last_check_in_date}`);
+
+  await checkIn(dee, day(0));
+  s = await streakOf(dee.id);
+  check('a consecutive day extends the streak to 2', s.current_streak === 2,
+    `streak ${s.current_streak}`);
+
+  // Backdated correction must not drag last_check_in_date backwards, or a live
+  // streak would look lapsed to the nightly sweep.
+  await checkIn(dee, day(-5));
+  s = await streakOf(dee.id);
+  check('a backdated check-in does not move last_check_in_date back',
+    s.last_check_in_date === day(0), `last ${s.last_check_in_date}`);
+
+  const gapUser = await makeUser('gap', 'Gap', 'learning');
+  await checkIn(gapUser, day(-6));
+  await checkIn(gapUser, day(0));
+  s = await streakOf(gapUser.id);
+  check('a gap restarts the streak at 1', s.current_streak === 1, `streak ${s.current_streak}`);
+
+  // Nightly decay. Vancouver so the tz branch is genuinely exercised.
+  const lapsed = await makeUser('lapsed', 'Lapsed', 'learning');
+  await checkIn(lapsed, day(-1));
+  await admin.rpc('reset_stale_streaks');
+  s = await streakOf(lapsed.id);
+  check('yesterday survives the sweep, their day is not over', s.current_streak === 1,
+    `streak ${s.current_streak}`);
+
+  await admin.from('profiles')
+    .update({ last_check_in_date: day(-4), current_streak: 9 }).eq('id', lapsed.id);
+  const { data: swept } = await admin.rpc('reset_stale_streaks');
+  s = await streakOf(lapsed.id);
+  check('a stale streak is zeroed by the sweep', s.current_streak === 0,
+    `streak ${s.current_streak}, swept ${swept}`);
+
+  const { error: streakDenied } = await ada.client.rpc('reset_stale_streaks');
+  check('a normal user cannot run the sweep', !!streakDenied, streakDenied?.code);
+
+  const { data: cronJobs } = await admin.rpc('reset_stale_streaks');
+  check('the sweep is idempotent when nothing is stale', cronJobs === 0, `${cronJobs} rows`);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);
