@@ -2,7 +2,7 @@ import { ChevronLeft, Camera, Pencil, LogOut, Check } from 'lucide-react';
 import { Dumbbell, PenLine, BookOpen, Unlock, Sparkles, MoreHorizontal } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { supabase, updateDisplayName, updateGoal, uploadAvatar, type Goal } from '../lib/supabase';
+import { supabase, updateDisplayName, changeGoal, uploadAvatar, type Goal } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
 import { Avatar } from '../components/Avatar';
 
@@ -34,6 +34,11 @@ export default function Settings() {
   const [goalExpanded, setGoalExpanded] = useState(false);
   const [uploadedAvatar, setUploadedAvatar] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  // The goal awaiting confirmation. Changing goal ends the pairing, so it is
+  // never applied on a single tap.
+  const [pendingGoal, setPendingGoal] = useState<Goal | null>(null);
+  const [changing, setChanging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const name = savedName ?? profile?.display_name ?? '';
   const email = profile?.email ?? '';
@@ -68,15 +73,37 @@ export default function Settings() {
     e.target.value = ''; // allow re-picking the same file
   };
 
-  const onGoalPicked = async (goalId: string) => {
-    setPickedGoal(goalId); // optimistic
-    setGoalExpanded(false);
-    await updateGoal(goalId as Goal);
-    await refreshProfile();
-    // NOTE(Jerome): what should happen to an ACTIVE match when someone changes
-    // goal is an open product question for Salomeh — end the pairing and
-    // requeue, or leave it alone? Left alone for now, which is the
-    // non-destructive choice. M2.
+  const onGoalPicked = (goalId: string) => {
+    if (goalId === selectedGoal) {
+      setGoalExpanded(false);
+      return;
+    }
+    // Salomeh's decision, 2026-07-28: changing goal ends the current pairing
+    // and requeues. Destructive, so it is confirmed rather than applied on a tap.
+    setPendingGoal(goalId as Goal);
+  };
+
+  const confirmGoalChange = async () => {
+    const goal = pendingGoal;
+    if (!goal) return;
+    setChanging(true);
+    try {
+      const result = await changeGoal(goal);
+      if (!result.ok) {
+        setError('Could not change your goal. Please try again.');
+        setPendingGoal(null);
+        return;
+      }
+      setPickedGoal(goal);
+      setGoalExpanded(false);
+      setPendingGoal(null);
+      await refreshProfile();
+      // Go where the change actually left them, so the consequence is visible
+      // rather than implied.
+      navigate(result.matchId ? '/matched' : '/finding-partner');
+    } finally {
+      setChanging(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -259,7 +286,7 @@ export default function Settings() {
                 return (
                   <button
                     key={goal.id}
-                    onClick={() => void onGoalPicked(goal.id)}
+                    onClick={() => onGoalPicked(goal.id)}
                     className="relative flex flex-col items-center justify-center gap-3 transition-all duration-150 active:scale-[0.97]"
                     style={{
                       backgroundColor: '#FFFFFF',
@@ -323,6 +350,16 @@ export default function Settings() {
           </div>
         </div>
 
+        {error ? (
+          <p
+            role="alert"
+            className="mb-5 rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
+            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
+          >
+            {error}
+          </p>
+        ) : null}
+
         {/* Sign out */}
         <button
           type="button"
@@ -344,6 +381,64 @@ export default function Settings() {
         </button>
 
       </div>
+
+      {/* Goal-change confirmation.
+          Salomeh asked for a clear warning, and the wording is hers: changing
+          goal ends the partnership. Modal rather than an inline toggle, because
+          the consequence is not reversible. */}
+      {pendingGoal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ backgroundColor: 'rgba(43,43,43,0.45)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="goal-change-title"
+        >
+          <div
+            className="w-full max-w-md m-4 p-6 rounded-[1.25rem]"
+            style={{ backgroundColor: '#FFFFFF', boxShadow: CARD_SHADOW }}
+          >
+            <h2
+              id="goal-change-title"
+              className="text-[1.2rem] mb-2"
+              style={{ color: '#1A3328', fontWeight: 600 }}
+            >
+              Change to {GOALS.find((g) => g.id === pendingGoal)?.label}?
+            </h2>
+            <p className="text-[0.95rem] leading-relaxed mb-6" style={{ color: '#8A8580' }}>
+              This ends your current partnership and puts you back in the queue.
+              Your streak resets when you are matched again.
+            </p>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => void confirmGoalChange()}
+                disabled={changing}
+                className="w-full rounded-[1.25rem] py-4 disabled:opacity-60"
+                style={{
+                  backgroundColor: '#104241', color: '#FFFFFF',
+                  fontSize: '1rem', fontWeight: 700,
+                }}
+              >
+                {changing ? 'Changing…' : 'Change goal and find someone new'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingGoal(null)}
+                disabled={changing}
+                className="w-full rounded-[1.25rem] py-4 disabled:opacity-60"
+                style={{
+                  backgroundColor: '#FFFFFF', color: '#2B2B2B',
+                  fontSize: '1rem', fontWeight: 600,
+                  border: '1.5px solid rgba(43,43,43,0.15)',
+                }}
+              >
+                Keep my current partner
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

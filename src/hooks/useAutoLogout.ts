@@ -31,7 +31,10 @@ const LAST_ACTIVE_KEY = 'alyne:last-active';
  */
 export function useAutoLogout(enabled: boolean) {
   // Held in a ref so the effect does not re-subscribe on every interaction.
-  const lastActive = useRef(Date.now());
+  // Initialised to 0 rather than Date.now(): calling a clock during render is
+  // impure and makes the component non-deterministic. The effect stamps it
+  // immediately on mount, which is the first moment it is actually needed.
+  const lastActive = useRef(0);
 
   useEffect(() => {
     if (!enabled) return;

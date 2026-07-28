@@ -1,0 +1,34 @@
+{
+  /* Tests, the Vercel functions and the node scripts. These legitimately use
+     node globals (fs, path, process), which the app project deliberately does
+     not expose — a browser bundle should not be able to reach for readFileSync.
+     Keeping them in a separate project means `tsc -b` still checks them, rather
+     than the alternative of excluding them and losing type-checking entirely. */
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["node", "vite/client"],
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/test-setup.ts",
+    "api",
+    "e2e"
+  ]
+}

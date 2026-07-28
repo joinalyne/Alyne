@@ -16,6 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
+import { render, matchNotificationVars } from './_email';
 
 type Req = { method?: string; body?: unknown; headers: Record<string, string | string[] | undefined> };
 type Res = {
@@ -30,16 +31,6 @@ let cachedTemplate: string | null = null;
 function template(): string {
   if (cachedTemplate === null) cachedTemplate = readFileSync(TEMPLATE_PATH, 'utf8');
   return cachedTemplate;
-}
-
-function render(html: string, vars: Record<string, string>): string {
-  // Templates use {{name}}. Replace known keys only; anything unrecognised is
-  // left visible rather than silently blanked, so a missing variable shows up
-  // in a test send instead of shipping as an empty gap.
-  return Object.entries(vars).reduce(
-    (out, [key, value]) => out.replaceAll(`{{${key}}}`, value),
-    html,
-  );
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -93,7 +84,6 @@ export default async function handler(req: Req, res: Res) {
     return res.status(200).json({ sent: false, reason: 'already-sent-or-not-a-participant' });
   }
 
-  const assetBase = `${appUrl}/email`;
   const html = template();
 
   const recipients = [
@@ -104,15 +94,20 @@ export default async function handler(req: Req, res: Res) {
   try {
     const results = await Promise.all(
       recipients.map(async (r) => {
-        const body = render(html, {
-          app_url: appUrl,
-          asset_base: assetBase,
-          user_name: r.name ?? 'there',
-          partner_name: r.partner ?? 'your partner',
-          goal: claim.goal,
-          avatar_url: `${assetBase}/default-avatar.png`,
-          partner_avatar_url: `${assetBase}/default-avatar.png`,
-        });
+        const { html: body, missing } = render(
+          html,
+          matchNotificationVars({
+            appUrl,
+            recipientName: r.name,
+            partnerName: r.partner,
+            goal: claim.goal,
+          }),
+        );
+
+        // Refuse rather than send an email with literal {{placeholders}} in it.
+        if (missing.length) {
+          throw new Error(`Template variables not supplied: ${missing.join(', ')}`);
+        }
 
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',

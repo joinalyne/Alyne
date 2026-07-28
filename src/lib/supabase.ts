@@ -437,3 +437,21 @@ export async function endMatch(matchId: string): Promise<boolean> {
   if (error) console.error('[admin] end_match failed:', error.message);
   return !error;
 }
+
+/**
+ * Switch goal. Ends the current pairing and requeues for the new goal, per
+ * Salomeh's decision of 2026-07-28. Returns a match id if someone was already
+ * waiting on the new goal, otherwise null.
+ *
+ * Destructive, so the caller MUST warn first. Streaks reset on the next
+ * pairing rather than here, which is why someone who switches and waits keeps
+ * their number for now.
+ */
+export async function changeGoal(goal: Goal): Promise<{ ok: boolean; matchId: string | null }> {
+  const { data, error } = await supabase.rpc('change_goal', { p_goal: goal });
+  if (error) {
+    console.error('[supabase] change_goal failed:', error.message);
+    return { ok: false, matchId: null };
+  }
+  return { ok: true, matchId: (data as string | null) ?? null };
+}

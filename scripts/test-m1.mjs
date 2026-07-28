@@ -311,6 +311,55 @@ async function main() {
   check('ending the match closes partner visibility', adaSeesNow?.length === 1,
     `${adaSeesNow?.length} profiles visible`);
 
+  console.log('\n— changing goal (M2) —');
+  // Salomeh's decision: changing goal ends the pairing and requeues.
+  const one = await makeUser('one', 'One', 'mindfulness');
+  const two = await makeUser('two', 'Two', 'mindfulness');
+  await one.client.rpc('enqueue_and_match');
+  const { data: pairId } = await two.client.rpc('enqueue_and_match');
+  check('a pair is set up to change goal from', typeof pairId === 'string');
+
+  // Same goal must NOT destroy a good pairing.
+  const { data: sameGoal } = await one.client.rpc('change_goal', { p_goal: 'mindfulness' });
+  const { data: untouched } = await admin
+    .from('matches').select('status').eq('id', pairId).single();
+  check('choosing the goal you already have is a no-op',
+    untouched.status === 'active' && sameGoal === pairId, untouched.status);
+
+  const { data: newMatch, error: changeErr } = await one.client
+    .rpc('change_goal', { p_goal: 'quitting' });
+  check('changing goal succeeds', !changeErr, changeErr?.message);
+  check('nobody was waiting on the new goal, so no new match', newMatch === null,
+    `returned ${newMatch}`);
+
+  const { data: oldPair } = await admin
+    .from('matches').select('status, ended_by').eq('id', pairId).single();
+  check('the old pairing is ended and attributed to the system, not an admin',
+    oldPair.status === 'ended' && oldPair.ended_by === 'system',
+    `${oldPair.status} by ${oldPair.ended_by}`);
+
+  const { data: profileAfter } = await admin
+    .from('profiles').select('current_goal').eq('id', one.id).single();
+  check('the profile carries the new goal', profileAfter.current_goal === 'quitting',
+    profileAfter.current_goal);
+
+  const { data: queued } = await admin
+    .from('match_queue').select('goal, status').eq('user_id', one.id).eq('status', 'waiting');
+  check('they are requeued for the new goal', queued?.length === 1 && queued[0].goal === 'quitting',
+    JSON.stringify(queued));
+
+  // The ex-partner must be free to match again rather than stuck.
+  const three = await makeUser('three', 'Three', 'mindfulness');
+  const { data: rematch } = await three.client.rpc('enqueue_and_match');
+  check('the ex-partner can be matched again', typeof rematch === 'string',
+    `match ${String(rematch).slice(0, 8)}`);
+
+  // And someone already waiting on the target goal pairs immediately.
+  const four = await makeUser('four', 'Four', 'quitting');
+  const { data: instant } = await four.client.rpc('enqueue_and_match');
+  check('changing to a goal with someone waiting pairs at once',
+    typeof instant === 'string', `match ${String(instant).slice(0, 8)}`);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);
