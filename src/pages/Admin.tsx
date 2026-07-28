@@ -1,7 +1,27 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ShieldCheck, Clock, Users, Flag } from 'lucide-react';
 import { AlyneWordmark } from '../components/AlyneWordmark';
+import {
+  getAdminOverview, endMatch as endMatchRpc,
+  type AdminOverview, type AdminPair, type AdminQueueEntry,
+} from '../lib/supabase';
+import { goalLabel } from '../lib/goals';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN — internal tool, gated to Salomeh only.
+//
+// Gating: the route is wrapped in <RequireAdmin> (see routes.tsx), backed by
+// profiles.is_admin. That is navigation only. The real boundary is that every
+// query below goes through admin_overview(), which raises 42501 for a
+// non-admin, and RLS denies the underlying tables regardless.
+//
+// The three lists come from ONE rpc rather than three client queries:
+// `matches` has two foreign keys to `profiles`, which makes PostgREST embeds
+// awkward to name, and embedded joins return stale rows straight after a
+// write - which matters here because ending a match re-reads the list
+// immediately. See migration 0007.
+//
+// Streaks reset when a pair is NEXT matched, not when a match ends, per spec.
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — internal tool, gated to Salomeh only.
 //
@@ -27,29 +47,40 @@ type Pair = {
   daysSilent?: number; // present when flagged
 };
 
-const MOCK_FLAGGED: Pair[] = [
-  { id: 'm1', goal: 'Fitness', daysSilent: 4,
-    a: { name: 'Dana K.', streak: 9, lastCheckIn: 'today' },
-    b: { name: 'Chris P.', streak: 0, lastCheckIn: '4 days ago' } },
-  { id: 'm2', goal: 'Writing', daysSilent: 3,
-    a: { name: 'Sam O.', streak: 12, lastCheckIn: 'yesterday' },
-    b: { name: 'Lee W.', streak: 0, lastCheckIn: '3 days ago' } },
-];
+/**
+ * Human wording for a last-check-in date. `null` means they have never checked
+ * in at all, which is not the same as "a long time ago" and should not read as
+ * though it were.
+ */
+function lastCheckInLabel(date: string | null): string {
+  if (!date) return 'never';
+  const today = new Date().toLocaleDateString('en-CA');
+  if (date === today) return 'today';
+  const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString('en-CA');
+  if (date === yesterday) return 'yesterday';
+  const days = Math.round((Date.parse(today) - Date.parse(date)) / 86_400_000);
+  return days + ' days ago';
+}
 
-const MOCK_ACTIVE: Pair[] = [
-  { id: 'm3', goal: 'Mindfulness',
-    a: { name: 'Alex R.', streak: 5, lastCheckIn: 'today' },
-    b: { name: 'Jamie T.', streak: 12, lastCheckIn: 'today' } },
-  { id: 'm4', goal: 'Learning',
-    a: { name: 'Priya N.', streak: 21, lastCheckIn: 'today' },
-    b: { name: 'Marco D.', streak: 21, lastCheckIn: 'yesterday' } },
-];
+function waitingFor(enqueuedAt: string): string {
+  const minutes = Math.floor((Date.now() - Date.parse(enqueuedAt)) / 60_000);
+  if (minutes < 60) return minutes + ' min';
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + ' hours';
+  const days = Math.floor(hours / 24);
+  return days + (days === 1 ? ' day' : ' days');
+}
 
-const MOCK_QUEUE = [
-  { id: 'q1', name: 'Jordan F.', goal: 'Fitness', waiting: '2 hours' },
-  { id: 'q2', name: 'Robin S.', goal: 'Quitting', waiting: '1 day' },
-  { id: 'q3', name: 'Casey M.', goal: 'Fitness', waiting: '2 days' },
-];
+/** Flatten an rpc row into the shape PairCard already expects. */
+function toPair(row: AdminPair): Pair {
+  return {
+    id: row.id,
+    goal: goalLabel(row.goal),
+    daysSilent: row.days_silent,
+    a: { name: row.a_name ?? 'Unnamed', streak: row.a_streak, lastCheckIn: lastCheckInLabel(row.a_last) },
+    b: { name: row.b_name ?? 'Unnamed', streak: row.b_streak, lastCheckIn: lastCheckInLabel(row.b_last) },
+  };
+}
 
 const sectionLabel = {
   color: '#8A8580', fontWeight: 600, letterSpacing: '0.07em',
@@ -123,14 +154,44 @@ function PairCard({ pair, flagged, onEnd }: { pair: Pair; flagged?: boolean; onE
 }
 
 export default function Admin() {
-  const [flagged, setFlagged] = useState(MOCK_FLAGGED);
-  const [active, setActive] = useState(MOCK_ACTIVE);
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const endMatch = (id: string) => {
-    // TODO(Jerome): call Supabase — matches.status='ended', ended_at=now(), ended_by='admin'
-    setFlagged((p) => p.filter((m) => m.id !== id));
-    setActive((p) => p.filter((m) => m.id !== id));
+  const load = useCallback(async () => {
+    const data = await getAdminOverview();
+    if (!data) setError('Could not load the overview.');
+    setOverview(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
+
+  const endMatch = async (id: string) => {
+    // Optimistic, then re-read. Dropping it immediately makes the button feel
+    // instant; re-reading means the pair reappears if the call actually failed,
+    // rather than silently vanishing from Salomeh's view.
+    setOverview((current) =>
+      current
+        ? {
+            ...current,
+            flagged: current.flagged.filter((m) => m.id !== id),
+            active: current.active.filter((m) => m.id !== id),
+          }
+        : current,
+    );
+    await endMatchRpc(id);
+    await load();
   };
+
+  const flagged: Pair[] = (overview?.flagged ?? []).map(toPair);
+  const active: Pair[] = (overview?.active ?? []).map(toPair);
+  const queue: AdminQueueEntry[] = overview?.queue ?? [];
+
+  if (loading) return null;
 
   return (
     <div className="min-h-screen bg-background px-6 py-10">
@@ -146,6 +207,16 @@ export default function Admin() {
             <ShieldCheck size={13} strokeWidth={1.5} color="#104241" /> Admin
           </span>
         </div>
+
+        {error ? (
+          <p
+            role="alert"
+            className="mb-6 rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
+            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
+          >
+            {error}
+          </p>
+        ) : null}
 
         {/* Needs attention */}
         <div className="flex items-center gap-2 mb-3">
@@ -163,33 +234,41 @@ export default function Admin() {
           <Users size={14} strokeWidth={1.5} color="#104241" />
           <p className="text-[0.75rem] uppercase" style={sectionLabel}>Active pairs</p>
         </div>
-        <div className="mb-6">{active.map((p) => <PairCard key={p.id} pair={p} onEnd={endMatch} />)}</div>
+        {active.length === 0 ? (
+          <p className="text-[0.9rem] mb-6" style={{ color: '#8A8580' }}>No active pairs yet.</p>
+        ) : (
+          <div className="mb-6">{active.map((p) => <PairCard key={p.id} pair={p} onEnd={endMatch} />)}</div>
+        )}
 
         {/* Waiting queue */}
         <div className="flex items-center gap-2 mb-3 mt-8">
           <Clock size={14} strokeWidth={1.5} color="#A8893F" />
           <p className="text-[0.75rem] uppercase" style={sectionLabel}>Waiting queue (FIFO)</p>
         </div>
+        {queue.length === 0 ? (
+          <p className="text-[0.9rem]" style={{ color: '#8A8580' }}>Nobody waiting.</p>
+        ) : (
         <div className="rounded-[1.25rem]" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
-          {MOCK_QUEUE.map((q, i) => (
+          {queue.map((q, i) => (
             <div
               key={q.id}
               className="flex items-center justify-between px-5 py-4"
-              style={{ borderBottom: i < MOCK_QUEUE.length - 1 ? '1px solid rgba(43,43,43,0.06)' : 'none' }}
+              style={{ borderBottom: i < queue.length - 1 ? '1px solid rgba(43,43,43,0.06)' : 'none' }}
             >
               <div className="flex items-center gap-4">
                 <div className="flex items-center justify-center w-7 h-7 rounded-full" style={{ background: '#F5F3F0' }}>
                   <span className="text-[0.78rem]" style={{ color: '#A8893F', fontWeight: 700 }}>{i + 1}</span>
                 </div>
                 <div>
-                  <p className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>{q.name}</p>
-                  <p className="text-[0.78rem]" style={{ color: '#8A8580' }}>{q.goal}</p>
+                  <p className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>{q.name ?? 'Unnamed'}{q.priority ? <span className="ml-2 text-[0.7rem] uppercase" style={{ color: '#A8893F', fontWeight: 700 }}>priority</span> : null}</p>
+                  <p className="text-[0.78rem]" style={{ color: '#8A8580' }}>{goalLabel(q.goal)}</p>
                 </div>
               </div>
-              <p className="text-[0.85rem]" style={{ color: '#8A8580' }}>waiting {q.waiting}</p>
+              <p className="text-[0.85rem]" style={{ color: '#8A8580' }}>waiting {waitingFor(q.enqueued_at)}</p>
             </div>
           ))}
         </div>
+        )}
 
       </div>
     </div>

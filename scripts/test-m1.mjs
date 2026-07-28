@@ -264,6 +264,53 @@ async function main() {
   const { data: cronJobs } = await admin.rpc('reset_stale_streaks');
   check('the sweep is idempotent when nothing is stale', cronJobs === 0, `${cronJobs} rows`);
 
+  console.log('\n— /admin overview (M2) —');
+  const { error: notAdmin } = await ada.client.rpc('admin_overview');
+  check('a normal user cannot read the overview', !!notAdmin, notAdmin?.code);
+
+  // Promote Bo via the service role. is_admin is not writable by the user
+  // themselves (0004), which is the point.
+  await admin.from('profiles').update({ is_admin: true }).eq('id', bo.id);
+  const { data: view, error: viewErr } = await bo.client.rpc('admin_overview');
+  check('an admin can read the overview', !viewErr && !!view, viewErr?.message);
+
+  const adaBoMatch = (view?.active ?? []).concat(view?.flagged ?? [])
+    .find((p) => [p.a_name, p.b_name].includes('Ada'));
+  check('the overview lists the Ada/Bo pairing', !!adaBoMatch,
+    adaBoMatch ? `${adaBoMatch.a_name} + ${adaBoMatch.b_name}, ${adaBoMatch.days_silent}d silent` : 'not found');
+  check('it reports both streaks and last check-in dates',
+    adaBoMatch !== undefined && typeof adaBoMatch.a_streak === 'number',
+    adaBoMatch ? `streaks ${adaBoMatch.a_streak}/${adaBoMatch.b_streak}` : '');
+  check('counts are present', typeof view?.counts?.active === 'number',
+    JSON.stringify(view?.counts));
+
+  // Cy is still queued from the cross-goal check earlier.
+  check('the FIFO queue is listed', Array.isArray(view?.queue), `${view?.queue?.length} waiting`);
+
+  // end_match is admin only, and ending a pairing removes it from the overview.
+  const { error: endDenied } = await ada.client.rpc('end_match', { match_id: second });
+  const { data: stillActive } = await admin
+    .from('matches').select('status').eq('id', second).single();
+  check('a normal user cannot end a match', stillActive.status === 'active',
+    endDenied ? `rejected ${endDenied.code}` : 'no error but unchanged');
+
+  await bo.client.rpc('end_match', { match_id: second });
+  const { data: ended } = await admin
+    .from('matches').select('status, ended_by, ended_at').eq('id', second).single();
+  check('an admin ends the match and it is attributed',
+    ended.status === 'ended' && ended.ended_by === 'admin' && !!ended.ended_at,
+    `${ended.status} by ${ended.ended_by}`);
+
+  const { data: after } = await bo.client.rpc('admin_overview');
+  const stillListed = (after?.active ?? []).concat(after?.flagged ?? [])
+    .some((p) => p.id === second);
+  check('the ended pairing drops off the overview', !stillListed);
+
+  // Partner visibility must close when the pairing ends.
+  const { data: adaSeesNow } = await ada.client.from('profiles').select('display_name');
+  check('ending the match closes partner visibility', adaSeesNow?.length === 1,
+    `${adaSeesNow?.length} profiles visible`);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);

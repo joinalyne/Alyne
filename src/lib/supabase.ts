@@ -387,3 +387,53 @@ export async function signedCheckInUrl(path: string): Promise<string | null> {
   }
   return data.signedUrl;
 }
+
+// ── Admin ────────────────────────────────────────────────────────────────────
+
+export type AdminPair = {
+  id: string;
+  goal: string;
+  created_at: string;
+  a_name: string | null;
+  a_streak: number;
+  a_last: string | null;
+  b_name: string | null;
+  b_streak: number;
+  b_last: string | null;
+  days_silent: number;
+};
+
+export type AdminQueueEntry = {
+  id: string;
+  name: string | null;
+  goal: string;
+  priority: boolean;
+  enqueued_at: string;
+};
+
+export type AdminOverview = {
+  flagged: AdminPair[];
+  active: AdminPair[];
+  queue: AdminQueueEntry[];
+  counts: { active: number; flagged: number; waiting: number };
+};
+
+/** Everything /admin shows, in one guarded round trip. Admin only. */
+export async function getAdminOverview(): Promise<AdminOverview | null> {
+  const { data, error } = await supabase.rpc('admin_overview');
+  if (error) {
+    console.error('[admin] overview failed:', error.message);
+    return null;
+  }
+  return data as AdminOverview;
+}
+
+/**
+ * End a pairing. Both users' streaks reset when they are NEXT matched, not
+ * here, per Salomeh's spec: the reset belongs to the new pairing.
+ */
+export async function endMatch(matchId: string): Promise<boolean> {
+  const { error } = await supabase.rpc('end_match', { match_id: matchId });
+  if (error) console.error('[admin] end_match failed:', error.message);
+  return !error;
+}
