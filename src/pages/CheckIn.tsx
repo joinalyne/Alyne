@@ -1,6 +1,7 @@
 import { Camera, Mic, Edit3, ChevronLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { getPartnerSnapshot } from '../lib/supabase';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
@@ -9,7 +10,20 @@ export default function CheckIn() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [message, setMessage] = useState('');
 
-  const partner = { name: "Jamie" };
+  // Real partner, not the mock "Jamie". Saving a check-in is M2 — see
+  // handleSend — but showing a signed-in user a stranger's name is not a
+  // sensible way to represent "not built yet".
+  const [partnerName, setPartnerName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getPartnerSnapshot().then((snapshot) => {
+      if (active) setPartnerName(snapshot?.partner.displayName ?? null);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const partner = { name: partnerName ?? 'your partner' };
 
   const today = new Date();
   const dateString = today.toLocaleDateString('en-US', {
@@ -25,7 +39,9 @@ export default function CheckIn() {
   ];
 
   const handleSend = () => {
-    console.log('Sending check-in:', { option: selectedOption, message });
+    // M2: photo/voice/text check-in backend, one-per-day enforcement and the
+    // nightly streak job. The button is disabled until then rather than
+    // silently discarding what someone typed.
   };
 
   return (
@@ -120,8 +136,11 @@ export default function CheckIn() {
         {/* Send button */}
         <div className="mt-8 space-y-3">
           <button
+            type="button"
             onClick={handleSend}
-            className="w-full transition-all duration-200 active:scale-[0.98]"
+            disabled
+            title="Saving check-ins arrives in the next milestone"
+            className="w-full transition-all duration-200 disabled:opacity-50"
             style={{
               backgroundColor: '#104241',
               color: '#FFFFFF',

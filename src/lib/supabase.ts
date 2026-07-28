@@ -288,6 +288,12 @@ export async function notifyMatch(matchId: string): Promise<void> {
       body: JSON.stringify({ matchId }),
     });
 
+    if (response.status === 404) {
+      // `vite dev` does not serve Vercel functions, so this is expected locally
+      // and must not look like a fault.
+      console.info('[match-email] endpoint not available in this environment');
+      return;
+    }
     if (!response.ok) {
       console.error('[match-email] send failed:', response.status, await response.text());
     }

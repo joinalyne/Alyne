@@ -1,14 +1,16 @@
 import { Settings, UserRound, Bell } from 'lucide-react';
 import { Link } from 'react-router';
+import { useAuth } from '../contexts/useAuth';
+import { Avatar } from '../components/Avatar';
 import { AlyneWordmark } from '../components/AlyneWordmark';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
 export default function HomeEmpty() {
-  const currentUser = {
-    name: "You",
-    photo: "https://images.unsplash.com/photo-1581564018992-95e729d4940e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-  };
+  // The user's own profile, not a stock portrait. This screen is what someone
+  // sees while waiting for a partner, so it is the first thing a brand new
+  // signup looks at — showing them a stranger's face is a poor welcome.
+  const { profile } = useAuth();
 
   return (
     <div className="min-h-screen flex items-start justify-center p-6 bg-background">
@@ -44,14 +46,9 @@ export default function HomeEmpty() {
           <div className="flex items-center justify-center gap-8 mb-6">
             {/* You */}
             <div className="flex flex-col items-center">
-              <img
-                src={currentUser.photo}
-                alt={currentUser.name}
-                className="w-20 h-20 rounded-full object-cover"
-                style={{ border: '3px solid #104241' }}
-              />
+              <Avatar src={profile?.avatar_url} name={profile?.display_name} size={80} />
               <p className="mt-3 text-[0.9rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>
-                {currentUser.name}
+                You
               </p>
             </div>
 

@@ -8,29 +8,17 @@ const PROFILE_COLUMNS =
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-
-  // Two separate flags, combined below.
-  //
-  // The first version tracked a single `loading` and cleared it inside
-  // onAuthStateChange while the profile fetch ran unawaited. Guards then saw
-  // `loading: false` with `profile: null` and read that as "signed in but not
-  // onboarded" — so refreshing /home threw a fully onboarded user back into
-  // profile setup. The fix is that loading must not end until BOTH the session
-  // and the profile have settled. Awaiting inside onAuthStateChange is not an
-  // option; the Supabase client deadlocks if you call it from its own callback.
   const [sessionResolved, setSessionResolved] = useState(false)
-  const [profileLoading, setProfileLoading] = useState(true)
+  const [loadedProfile, setLoadedProfile] = useState<Profile | null>(null)
+
+  // Which user id `loadedProfile` belongs to. Undefined means nothing has been
+  // fetched yet. This is what `loading` is derived from, rather than a separate
+  // boolean that an effect has to set synchronously.
+  const [loadedFor, setLoadedFor] = useState<string | undefined>(undefined)
 
   const userId = session?.user.id ?? null
 
-  const loadProfile = useCallback(async (id: string | null) => {
-    if (!id) {
-      setProfile(null)
-      setProfileLoading(false)
-      return
-    }
-    setProfileLoading(true)
+  const loadProfile = useCallback(async (id: string) => {
     // maybeSingle, not single: a user who signed up but abandoned onboarding
     // has no profile row yet, and that is a valid state, not an error.
     const { data, error } = await supabase
@@ -41,15 +29,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('[auth] could not load profile:', error.message)
-      setProfile(null)
+      setLoadedProfile(null)
     } else {
-      setProfile((data as Profile) ?? null)
+      setLoadedProfile((data as Profile) ?? null)
     }
-    setProfileLoading(false)
+    // Last, and only after the await, so nothing in this function runs
+    // synchronously during the effect that calls it.
+    setLoadedFor(id)
   }, [])
 
-  // Session only. The profile is handled by the effect below, keyed on user id,
-  // so it cannot race with this one.
   useEffect(() => {
     let active = true
 
@@ -74,24 +62,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!sessionResolved) return
+    if (!sessionResolved || !userId) return
+    // loadProfile awaits before it touches state, so nothing is set
+    // synchronously during this effect. The rule traces setState calls
+    // interprocedurally and cannot see past the await, so it flags every
+    // fetch-on-mount; ResetPassword has the same shape. The alternative is a
+    // data-fetching library, which is not worth adding for one query.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadProfile(userId)
   }, [sessionResolved, userId, loadProfile])
 
   const refreshProfile = useCallback(async () => {
-    await loadProfile(userId)
+    if (userId) await loadProfile(userId)
   }, [loadProfile, userId])
 
-  const value = useMemo(
-    () => ({
+  const value = useMemo(() => {
+    // Derived rather than cleared by an effect: a signed-out user has no
+    // profile by definition, and a profile belonging to a previous user must
+    // never leak into the next session.
+    const profile = userId && loadedFor === userId ? loadedProfile : null
+
+    // Signed out is a settled state, so loading ends once the session resolves.
+    // Signed in is not settled until that user's profile has been fetched —
+    // ending loading early is what previously made guards read a fully
+    // onboarded user as "not onboarded" and bounce them into profile setup.
+    const profileSettled = userId === null || loadedFor === userId
+
+    return {
       session,
       user: session?.user ?? null,
       profile,
-      loading: !sessionResolved || profileLoading,
+      loading: !sessionResolved || !profileSettled,
       refreshProfile,
-    }),
-    [session, profile, sessionResolved, profileLoading, refreshProfile],
-  )
+    }
+  }, [session, userId, loadedProfile, loadedFor, sessionResolved, refreshProfile])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

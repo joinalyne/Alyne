@@ -10,11 +10,14 @@ export function Avatar({
   name,
   size = 96,
   className = '',
+  borderColor = '#104241',
 }: {
   src?: string | null;
   name?: string | null;
   size?: number;
   className?: string;
+  /** Settings rings the avatar in the page background rather than the brand green. */
+  borderColor?: string;
 }) {
   const initial = (name?.trim()?.[0] ?? '?').toUpperCase();
   const dimensions = { width: size, height: size };
@@ -25,7 +28,7 @@ export function Avatar({
         src={src}
         alt={name ?? 'Profile photo'}
         className={`rounded-full object-cover ${className}`}
-        style={{ ...dimensions, border: '3px solid #104241' }}
+        style={{ ...dimensions, border: `3px solid ${borderColor}` }}
       />
     );
   }
@@ -37,7 +40,7 @@ export function Avatar({
       className={`rounded-full flex items-center justify-center ${className}`}
       style={{
         ...dimensions,
-        border: '3px solid #104241',
+        border: `3px solid ${borderColor}`,
         backgroundColor: '#f5f3f0',
         color: '#a8893f',
         fontSize: size * 0.36,

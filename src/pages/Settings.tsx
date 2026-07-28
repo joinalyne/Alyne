@@ -2,7 +2,9 @@ import { ChevronLeft, Camera, Pencil, LogOut, Check } from 'lucide-react';
 import { Dumbbell, PenLine, BookOpen, Unlock, Sparkles, MoreHorizontal } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { updateDisplayName, uploadAvatar } from '../lib/supabase';
+import { supabase, updateDisplayName, updateGoal, uploadAvatar, type Goal } from '../lib/supabase';
+import { useAuth } from '../contexts/useAuth';
+import { Avatar } from '../components/Avatar';
 
 const GOALS = [
   { id: 'fitness',     label: 'Fitness',     icon: Dumbbell },
@@ -18,38 +20,69 @@ const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 export default function Settings() {
   const navigate = useNavigate();
 
-  const [name, setName] = useState('Alex Rivera');
-  const [editingName, setEditingName] = useState(false);
-  const [draftName, setDraftName] = useState(name);
-  const [selectedGoal, setSelectedGoal] = useState('fitness');
-  const [goalExpanded, setGoalExpanded] = useState(false);
+  const { profile, refreshProfile } = useAuth();
 
-  const email = 'alex@example.com';
-  const [avatarUrl, setAvatarUrl] = useState(
-    'https://images.unsplash.com/photo-1581564018992-95e729d4940e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200'
-  );
+  // Local state holds only what the user has just changed. Everything else is
+  // derived from the real profile, so this screen can no longer show a stranger
+  // their own account: it previously hardcoded "Alex Rivera" and
+  // "alex@example.com", which reads as somebody else's data rather than as an
+  // unfinished screen.
+  const [savedName, setSavedName] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [pickedGoal, setPickedGoal] = useState<string | null>(null);
+  const [goalExpanded, setGoalExpanded] = useState(false);
+  const [uploadedAvatar, setUploadedAvatar] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const name = savedName ?? profile?.display_name ?? '';
+  const email = profile?.email ?? '';
+  const selectedGoal = pickedGoal ?? profile?.current_goal ?? 'fitness';
+  const avatarUrl = uploadedAvatar ?? profile?.avatar_url ?? null;
+  const plan = profile?.plan === 'paid' ? 'Paid' : 'Free';
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentGoal = GOALS.find((g) => g.id === selectedGoal)!;
+  // Fall back rather than assert: a goal value the UI does not know about must
+  // not crash the whole screen.
+  const currentGoal = GOALS.find((g) => g.id === selectedGoal) ?? GOALS[0];
   const GoalIcon = currentGoal.icon;
 
-  const saveName = () => {
+  const saveName = async () => {
     const trimmed = draftName.trim();
-    if (trimmed) {
-      setName(trimmed); // optimistic — UI updates immediately
-      void updateDisplayName(trimmed); // persists when Supabase is configured
-    }
     setEditingName(false);
+    if (!trimmed || trimmed === name) return;
+    setSavedName(trimmed); // optimistic — the field updates immediately
+    await updateDisplayName(trimmed);
+    await refreshProfile();
   };
 
   const onAvatarPicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const localPreview = URL.createObjectURL(file);
-    setAvatarUrl(localPreview); // optimistic preview
-    const publicUrl = await uploadAvatar(file); // persists when Supabase is configured
-    if (publicUrl) setAvatarUrl(publicUrl);
+    setUploadedAvatar(localPreview); // optimistic preview
+    const publicUrl = await uploadAvatar(file);
+    if (publicUrl) setUploadedAvatar(publicUrl);
+    await refreshProfile();
     e.target.value = ''; // allow re-picking the same file
+  };
+
+  const onGoalPicked = async (goalId: string) => {
+    setPickedGoal(goalId); // optimistic
+    setGoalExpanded(false);
+    await updateGoal(goalId as Goal);
+    await refreshProfile();
+    // NOTE(Jerome): what should happen to an ACTIVE match when someone changes
+    // goal is an open product question for Salomeh — end the pairing and
+    // requeue, or leave it alone? Left alone for now, which is the
+    // non-destructive choice. M2.
+  };
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    navigate('/', { replace: true });
   };
 
   return (
@@ -78,12 +111,9 @@ export default function Settings() {
           }}
         >
           <div className="relative mb-4">
-            <img
-              src={avatarUrl}
-              alt={name}
-              className="w-24 h-24 rounded-full object-cover"
-              style={{ border: '3px solid var(--background)' }}
-            />
+            {/* Avatar, not a bare <img>: avatarUrl is null for anyone who has
+                not uploaded a photo, and a broken image is worse than none. */}
+            <Avatar src={avatarUrl} name={name} size={96} borderColor="var(--background)" />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="absolute bottom-0 right-0 flex items-center justify-center w-8 h-8 rounded-full"
@@ -139,8 +169,8 @@ export default function Settings() {
                   autoFocus
                   value={draftName}
                   onChange={(e) => setDraftName(e.target.value)}
-                  onBlur={saveName}
-                  onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                  onBlur={() => void saveName()}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void saveName(); }}
                   className="focus:outline-none w-full"
                   style={{ color: '#2B2B2B', fontWeight: 500, fontSize: '0.95rem', background: 'transparent' }}
                 />
@@ -229,7 +259,7 @@ export default function Settings() {
                 return (
                   <button
                     key={goal.id}
-                    onClick={() => setSelectedGoal(goal.id)}
+                    onClick={() => void onGoalPicked(goal.id)}
                     className="relative flex flex-col items-center justify-center gap-3 transition-all duration-150 active:scale-[0.97]"
                     style={{
                       backgroundColor: '#FFFFFF',
@@ -281,7 +311,7 @@ export default function Settings() {
           <div className="flex items-center justify-between px-5 pb-4 pt-1">
             <div>
               <p className="text-[0.78rem] mb-0.5" style={{ color: '#8A8580' }}>Plan</p>
-              <p className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>Free</p>
+              <p className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>{plan}</p>
             </div>
             <Link
               to="/upgrade"
@@ -295,7 +325,10 @@ export default function Settings() {
 
         {/* Sign out */}
         <button
-          className="w-full flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98]"
+          type="button"
+          onClick={() => void handleSignOut()}
+          disabled={signingOut}
+          className="w-full flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
           style={{
             backgroundColor: '#104241',
             color: '#FFFFFF',
@@ -307,7 +340,7 @@ export default function Settings() {
           }}
         >
           <LogOut size={18} strokeWidth={1.5} color="#FFFFFF" />
-          Sign Out
+          {signingOut ? 'Signing out…' : 'Sign Out'}
         </button>
 
       </div>

@@ -142,8 +142,18 @@ test('a different goal does not cross-pair', async ({ browser }) => {
     await writer.waitForTimeout(7_000); // longer than one poll interval
     await expect(writer.getByText('Finding your person')).toBeVisible();
 
-    const { data: matches } = await admin.from('matches').select('id').eq('status', 'active');
-    expect(matches?.length ?? 0).toBe(0);
+    // Scoped to these two users, not a global count: real accounts may be
+    // legitimately matched on the same project, and asserting on global state
+    // makes this spec fail for reasons that have nothing to do with it.
+    const { data: theseUsers } = await admin
+      .from('profiles').select('id').in('email', [writerEmail, lifterEmail]);
+    const ids = (theseUsers ?? []).map((u) => u.id);
+    const { data: matches } = await admin
+      .from('matches').select('id, user_a, user_b').eq('status', 'active');
+    const involvingTestUsers = (matches ?? []).filter(
+      (m) => ids.includes(m.user_a) || ids.includes(m.user_b),
+    );
+    expect(involvingTestUsers.length).toBe(0);
   } finally {
     await Promise.all(contexts.map((c) => c.close()));
   }
