@@ -21,8 +21,16 @@ Hosts are now variables, so the app's address is set in one place:
 The two Supabase-pasted templates use `{{ .SiteURL }}` and so need no
 substitution at all — they follow whatever Site URL is configured.
 
-Footer links to `https://joinalyne.com` are left as they are: those point at the
-marketing site deliberately, and that domain does resolve.
+`APP_URL` is `https://app.joinalyne.com` (agreed 2026-07-27). The app sits at the
+root of that subdomain, so CTA links are `{{app_url}}`, never `{{app_url}}/app`.
+
+### The three remaining `joinalyne.com` links are correct — do not change them
+
+`inactive-nudge`, `match-notification` and `waitlist-confirmation` each end with
+"You're receiving this because ... on joinalyne.com". Those point at the Wix
+marketing site on purpose: it is the public face of the brand, it resolves, and
+an unsubscribe-context footer should go there rather than into the app. Every
+link that needed to become the app host already has.
 
 ## Supabase templates (Kane pastes — 5 minutes)
 Supabase Dashboard → Authentication → Email Templates:
