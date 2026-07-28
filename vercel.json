@@ -1,5 +1,11 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/send-match-email.ts": {
+      "//": "The handler reads emails/match-notification.html at runtime. Vercel decides what to bundle by tracing imports, and a readFileSync path is not traceable, so without this the file is simply absent in production and the send fails with ENOENT.",
+      "includeFiles": "emails/**"
+    }
+  }
 }
