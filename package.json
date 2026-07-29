@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b tsconfig.app.json && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "seed": "node scripts/seed.mjs",
@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:all": "vitest run && playwright test && node scripts/test-m1.mjs"
+    "test:all": "vitest run && playwright test && node scripts/test-m1.mjs",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
