@@ -212,3 +212,74 @@ test('you can always get back out of Settings and Upgrade', async ({ browser }) 
     await Promise.all(contexts.map((c) => c.close()));
   }
 });
+
+/**
+ * Every route, walked as a user.
+ *
+ * Two bugs reached Jerome that my other tests missed, and both were the same
+ * shape: the data was right and the journey was wrong. Those tests assert what
+ * the code does; this one asserts a person is never stranded.
+ *
+ * For each route: it must render something, and there must be a way back to the
+ * app from it, either because the route redirects or because a visible control
+ * leads there.
+ */
+test('no route is a dead end', async ({ browser }) => {
+  const contexts: BrowserContext[] = [];
+  try {
+    const oneEmail = await createConfirmedUser('deadA');
+    const twoEmail = await createConfirmedUser('deadB');
+    const c1 = await browser.newContext();
+    const c2 = await browser.newContext();
+    contexts.push(c1, c2);
+    const page = await c1.newPage();
+    const other = await c2.newPage();
+
+    // A fully onboarded, matched user: the state most routes assume.
+    await signIn(page, oneEmail);
+    await completeOnboarding(page, 'DeadA', 'Learning');
+    await signIn(other, twoEmail);
+    await completeOnboarding(other, 'DeadB', 'Learning');
+    await expect(page.getByText("You've been matched with DeadB!")).toBeVisible({ timeout: 20_000 });
+
+    const routes = [
+      '/home', '/settings', '/upgrade', '/check-in',
+      '/matched', '/home-empty', '/finding-partner', '/admin',
+      '/profile-setup', '/goal-selection', '/reset-password', '/check-email',
+    ];
+
+    const stranded: string[] = [];
+
+    for (const route of routes) {
+      await page.goto(route);
+      await page.waitForLoadState('networkidle');
+      // FindingPartner holds ~2.6s on purpose so its animation plays before
+      // redirecting a matched user. Checking sooner races that.
+      if (route === '/finding-partner') await page.waitForTimeout(3_500);
+
+      // 1. Something must render. A blank screen is the worst outcome: no
+      //    error, no explanation, nothing to press.
+      const text = ((await page.locator('body').innerText()) || '').trim();
+      if (text.length < 10) {
+        stranded.push(`${route}: renders blank`);
+        continue;
+      }
+
+      // 2. There must be a way onward. Either the route sent us somewhere, or
+      //    it offers a back control or a link into the app.
+      const url = page.url();
+      const redirected = !url.endsWith(route);
+      const hasBack = await page.getByRole('button', { name: 'Back' }).count();
+      const hasAppLink = await page.locator('a[href="/home"], a[href="/settings"]').count();
+      const hasPrimaryAction = await page.getByRole('button').count();
+
+      if (!redirected && !hasBack && !hasAppLink && !hasPrimaryAction) {
+        stranded.push(`${route}: nothing to press and no redirect`);
+      }
+    }
+
+    expect(stranded, `dead ends found:\n${stranded.join('\n')}`).toEqual([]);
+  } finally {
+    await Promise.all(contexts.map((c) => c.close()));
+  }
+});

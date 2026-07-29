@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { ChevronLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import Asset1 from '../imports/Asset_1-1.svg';
@@ -67,6 +68,22 @@ export default function FindingPartner() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      {/* A way out. This screen had no navigation at all: someone waiting for a
+          partner could only leave via browser back, and on the installed PWA
+          there is no browser chrome to do that with, so they were genuinely
+          stuck watching an animation.
+
+          Leaving does NOT cancel the search, which is deliberate. They stay in
+          the queue and get an email, exactly as the copy below promises. */}
+      <button
+        type="button"
+        onClick={() => navigate('/home')}
+        aria-label="Back"
+        className="fixed top-6 left-6 flex items-center justify-center w-10 h-10"
+      >
+        <ChevronLeft size={24} strokeWidth={1.5} color="#2B2B2B" />
+      </button>
+
       <div className="w-full max-w-md space-y-10 text-center">
 
         {/* Logo */}
