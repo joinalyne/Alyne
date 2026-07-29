@@ -408,6 +408,52 @@ async function main() {
     .from('check-ins').createSignedUrl(mediaPath, 60);
   check('an ex-partner loses access once the pairing ends', !afterEnd?.signedUrl);
 
+  console.log('\n— push subscriptions (M4) —');
+  const sub = { endpoint: 'https://push.example/endpoint-' + ada.id, p256dh: 'k', auth: 'a' };
+
+  const { error: subErr } = await ada.client.from('push_subscriptions')
+    .upsert({ user_id: ada.id, ...sub }, { onConflict: 'endpoint', ignoreDuplicates: false });
+  check('a user can register a push subscription', !subErr, subErr?.message);
+
+  // The case 0011 exists for: a browser re-registering the same endpoint.
+  const { error: reSubErr } = await ada.client.from('push_subscriptions')
+    .upsert({ user_id: ada.id, ...sub, user_agent: 'refreshed' },
+            { onConflict: 'endpoint', ignoreDuplicates: false });
+  check('re-registering the same endpoint refreshes rather than failing',
+    !reSubErr, reSubErr?.message);
+
+  const { data: mine } = await ada.client.from('push_subscriptions').select('endpoint');
+  check('a user sees only their own subscriptions', mine?.length === 1, `${mine?.length} rows`);
+
+  const { data: notMine } = await bo.client.from('push_subscriptions').select('endpoint');
+  check('a partner cannot see them, unlike check-ins', notMine?.length === 0,
+    `${notMine?.length} rows`);
+
+  const { error: stealErr } = await bo.client.from('push_subscriptions')
+    .insert({ user_id: ada.id, endpoint: 'https://push.example/steal', p256dh: 'k', auth: 'a' });
+  check('nobody can register a subscription for someone else', !!stealErr, stealErr?.code);
+
+  const { error: unsubErr } = await ada.client.from('push_subscriptions')
+    .delete().eq('endpoint', sub.endpoint);
+  const { data: afterDelete } = await ada.client.from('push_subscriptions').select('endpoint');
+  check('a user can turn push off on their own device',
+    !unsubErr && afterDelete?.length === 0, unsubErr?.message);
+
+  console.log('\n— quiet hours and reminders (M4) —');
+  const { data: quiet } = await admin.rpc('in_quiet_hours', { p_user_id: ada.id });
+  check('quiet hours resolve to a boolean for a real user', typeof quiet === 'boolean',
+    `currently ${quiet}`);
+
+  const { error: quietDenied } = await ada.client.rpc('in_quiet_hours', { p_user_id: ada.id });
+  check('a user cannot probe quiet hours directly', !!quietDenied, quietDenied?.code);
+
+  const { data: due, error: dueErr } = await admin.rpc('users_due_streak_reminder');
+  check('the reminder query runs and returns a list', !dueErr && Array.isArray(due),
+    dueErr?.message ?? `${due?.length} due right now`);
+
+  const { error: dueDenied } = await ada.client.rpc('users_due_streak_reminder');
+  check('a user cannot run the reminder query', !!dueDenied, dueDenied?.code);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);
