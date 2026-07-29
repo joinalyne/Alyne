@@ -75,6 +75,11 @@ export async function ensureProfile(): Promise<void> {
   const timezone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
+  // Still called on sign-in even though 0013 creates the row on signup. It
+  // repairs anyone who predates that trigger, or whose insert was swallowed by
+  // its exception handler, and it is the only place the browser's timezone is
+  // known.
+  //
   // Two statements rather than one upsert, and that is deliberate.
   //
   // Migration 0004 restricts writes to `profiles` with column-level GRANTs, so
@@ -100,26 +105,51 @@ export async function ensureProfile(): Promise<void> {
   if (tzError) console.error('[supabase] ensureProfile timezone failed:', tzError.message);
 }
 
-/** Update the user's display name on `profiles`. Returns true on success. */
+/**
+ * Update the user's display name. True only if a row was actually written.
+ *
+ * `.select()` is load-bearing, not decoration. An UPDATE matching zero rows is
+ * not an error in Postgres, so without it this returned true when the profile
+ * did not exist, the name silently vanished, and the route guard then bounced
+ * the user back to profile setup for ever. That was the fresh-signup bug
+ * Salomeh hit. Asking for the changed rows back is what makes the failure
+ * visible.
+ */
 export async function updateDisplayName(name: string): Promise<boolean> {
   const id = await requireUserId();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .update({ display_name: name, updated_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) console.error('[supabase] updateDisplayName failed:', error.message);
-  return !error;
+    .eq('id', id)
+    .select('id');
+  if (error) {
+    console.error('[supabase] updateDisplayName failed:', error.message);
+    return false;
+  }
+  if (!data?.length) {
+    console.error('[supabase] updateDisplayName matched no profile row for', id);
+    return false;
+  }
+  return true;
 }
 
-/** Persist the chosen goal. Returns true on success. */
+/** Persist the chosen goal. True only if a row was actually written. */
 export async function updateGoal(goal: Goal): Promise<boolean> {
   const id = await requireUserId();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .update({ current_goal: goal, updated_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) console.error('[supabase] updateGoal failed:', error.message);
-  return !error;
+    .eq('id', id)
+    .select('id');
+  if (error) {
+    console.error('[supabase] updateGoal failed:', error.message);
+    return false;
+  }
+  if (!data?.length) {
+    console.error('[supabase] updateGoal matched no profile row for', id);
+    return false;
+  }
+  return true;
 }
 
 /**

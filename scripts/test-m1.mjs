@@ -454,6 +454,51 @@ async function main() {
   const { error: dueDenied } = await ada.client.rpc('users_due_streak_reminder');
   check('a user cannot run the reminder query', !!dueDenied, dueDenied?.code);
 
+  console.log('\n— signing up via the emailed confirmation link —');
+  // The path every real user takes, and the one none of these tests covered.
+  // They all sign in with a password, which is the only route that used to call
+  // ensureProfile, which is why the fresh-signup bug reached Salomeh.
+  const confirmEmail = `e2e-confirm${DOMAIN}`;
+  const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
+    type: 'signup', email: confirmEmail, password: PASSWORD,
+  });
+  check('a confirmation link can be generated', !linkErr, linkErr?.message);
+
+  const followed = await fetch(link.properties.action_link, { redirect: 'manual' });
+  const hash = new URLSearchParams(new URL(followed.headers.get('location')).hash.slice(1));
+  check('following it returns session tokens in the URL hash',
+    !!hash.get('access_token'), `status ${followed.status}`);
+
+  const confirmClient = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, {
+    auth: { persistSession: false },
+  });
+  const { data: sess } = await confirmClient.auth.setSession({
+    access_token: hash.get('access_token'),
+    refresh_token: hash.get('refresh_token'),
+  });
+  check('a session is established without any password sign-in', !!sess?.session);
+
+  const confirmedId = sess.session.user.id;
+  const { data: autoProfile } = await admin
+    .from('profiles').select('id, email').eq('id', confirmedId);
+  check('the profile row already exists, created by the signup trigger',
+    autoProfile?.length === 1, `${autoProfile?.length} rows`);
+
+  // The exact two writes that silently did nothing before.
+  const { data: named } = await confirmClient
+    .from('profiles').update({ display_name: 'Fresh' }).eq('id', confirmedId).select('id');
+  check('setting a name actually writes a row', named?.length === 1, `${named?.length} rows`);
+
+  const { data: goaled } = await confirmClient
+    .from('profiles').update({ current_goal: 'learning' }).eq('id', confirmedId).select('id');
+  check('choosing a goal actually writes a row', goaled?.length === 1, `${goaled?.length} rows`);
+
+  const { data: finalProfile } = await admin
+    .from('profiles').select('display_name, current_goal').eq('id', confirmedId).single();
+  check('onboarding persists, so the guard will not bounce them',
+    finalProfile.display_name === 'Fresh' && finalProfile.current_goal === 'learning',
+    `${finalProfile.display_name} / ${finalProfile.current_goal}`);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);
