@@ -42,7 +42,7 @@ export default async function handler(req: Req, res: Res) {
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY?.trim();
   const vapidPublic =
     process.env.VITE_VAPID_PUBLIC_KEY?.trim() ||
-    'BMTB2zX7yeQp96twPlwuDwbVQdMg9F508rY--FRtOwfOW3VYGKojak4nqNmPpqXEzsf5uw0TiyHE5x4GyJd5UX8';
+    'BDRFWAE0GPW30lA8d1eSwO1ZKRfwsocZdyzox-JB7tjTI0tNV0Y5htaQjlVsC35R8dPPm-MoJQbRWub2ugKNdLg';
   const subject = process.env.VAPID_SUBJECT?.trim() || 'mailto:hello@joinalyne.com';
   const cronSecret = process.env.CRON_SECRET?.trim();
 
