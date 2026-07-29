@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { render, matchNotificationVars } from '../../api/_email';
+import { render, matchNotificationVars, GOAL_LABELS } from '../../api/_email';
+import { GOAL_LABELS as CLIENT_GOAL_LABELS } from './goals';
 
 // cwd rather than import.meta.url: on Windows the URL form resolved to
 // C:\emails under the jsdom environment. Vitest always runs from the repo root.
@@ -31,11 +32,12 @@ describe('render', () => {
 });
 
 describe('match-notification template', () => {
+  // The raw enum, exactly as the database hands it to the sender.
   const vars = matchNotificationVars({
     appUrl: 'https://app.joinalyne.com',
     recipientName: 'Ada',
     partnerName: 'Bo',
-    goal: 'Writing',
+    goal: 'writing',
   });
 
   it('renders with nothing left over', () => {
@@ -43,19 +45,55 @@ describe('match-notification template', () => {
     expect(missing).toEqual([]);
   });
 
-  it('addresses the recipient, not the partner', () => {
+  it('addresses the recipient and introduces the partner, the right way round', () => {
+    // The v5 headline is "{{name}}, meet {{partner_name}}." Getting these
+    // reversed would send each person an email about themselves.
     const { html } = render(template('match-notification.html'), vars);
-    expect(html).toContain('Meet your partner, Ada.');
-    expect(html).not.toContain('Meet your partner, Bo.');
+    expect(html).toContain('Ada, meet Bo.');
+    expect(html).not.toContain('Bo, meet Ada.');
   });
 
-  it('points images and the CTA at the app, never the Wix marketing site', () => {
+  it('shows the goal LABEL, never the raw enum', () => {
+    // v5 renamed {{goal}} to {{goal_label}} because the sender was passing the
+    // database value straight through, so the email would read "writing".
+    expect(vars.goal_label).toBe('Writing');
     const { html } = render(template('match-notification.html'), vars);
-    expect(html).toContain('https://app.joinalyne.com/email/alyne-logo.png');
-    // joinalyne.com without the app subdomain may appear only in the footer
-    // brand link, never on an image or the CTA.
+    expect(html).toContain('>Writing.<');
+    expect(html).not.toContain('>writing.<');
+  });
+
+  it('degrades an unknown goal rather than leaking it raw', () => {
+    const odd = matchNotificationVars({
+      appUrl: 'https://app.joinalyne.com',
+      recipientName: 'Ada', partnerName: 'Bo', goal: 'gardening',
+    });
+    expect(odd.goal_label).toBe('Other');
+  });
+
+  it('supplies an unsubscribe link', () => {
+    expect(vars.unsubscribe_url).toBe('https://app.joinalyne.com/settings');
+  });
+
+  it('defaults to the v5 glyph, not the retired default-avatar', () => {
+    expect(vars.avatar_url).toContain('avatar-glyph.png');
+    expect(vars.avatar_url).not.toContain('default-avatar.png');
+  });
+
+  it('never points an image at the Wix marketing domain', () => {
+    // v5 hardcodes app.joinalyne.com for the logo and CTA, which is correct now
+    // the subdomain is live. What must never happen is an image resolving to the
+    // Wix site, where /email/ does not exist - that was the broken-logo bug.
+    const { html } = render(template('match-notification.html'), vars);
     const images = [...html.matchAll(/<img[^>]+src="([^"]+)"/g)].map((m) => m[1]);
-    expect(images.every((src) => src.startsWith('https://app.joinalyne.com'))).toBe(true);
+    expect(images.length).toBeGreaterThan(0);
+    for (const src of images) {
+      expect(src).not.toMatch(/^https:\/\/(www\.)?joinalyne\.com/);
+    }
+  });
+
+  it('keeps the server-side goal labels identical to the client ones', () => {
+    // Duplicated deliberately, so this guards the copy rather than the coupling.
+    expect(GOAL_LABELS).toEqual(CLIENT_GOAL_LABELS);
   });
 
   it('falls back to a default avatar rather than an empty src', () => {
@@ -63,12 +101,12 @@ describe('match-notification template', () => {
       appUrl: 'https://app.joinalyne.com',
       recipientName: 'Ada',
       partnerName: 'Bo',
-      goal: 'Writing',
+      goal: 'writing',
       recipientAvatarUrl: null,
       partnerAvatarUrl: null,
     });
-    expect(withoutPhotos.avatar_url).toContain('default-avatar.png');
-    expect(withoutPhotos.partner_avatar_url).toContain('default-avatar.png');
+    expect(withoutPhotos.avatar_url).toContain('avatar-glyph.png');
+    expect(withoutPhotos.partner_avatar_url).toContain('avatar-glyph.png');
   });
 
   it('copes with a user who never set a name', () => {
@@ -76,10 +114,10 @@ describe('match-notification template', () => {
       appUrl: 'https://app.joinalyne.com',
       recipientName: null,
       partnerName: null,
-      goal: 'Fitness',
+      goal: 'fitness',
     });
     const { html, missing } = render(template('match-notification.html'), anon);
     expect(missing).toEqual([]);
-    expect(html).toContain('Meet your partner, there.');
+    expect(html).toContain('there, meet your partner.');
   });
 });

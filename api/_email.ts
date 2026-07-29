@@ -33,27 +33,51 @@ export function render(template: string, vars: EmailVars): RenderResult {
 }
 
 /**
- * The variables the match-notification template expects, for one recipient.
+ * Display labels for the six goals.
+ *
+ * Duplicated from src/lib/goals.ts rather than imported. The client bundle and
+ * the serverless function are built separately, and reaching across would drag
+ * browser code into the function. A test asserts the two stay identical, which
+ * is cheaper than the coupling.
+ */
+export const GOAL_LABELS: Record<string, string> = {
+  fitness: 'Fitness',
+  writing: 'Writing',
+  learning: 'Learning',
+  quitting: 'Quitting',
+  mindfulness: 'Mindfulness',
+  other: 'Other',
+};
+
+/**
+ * The variables the v5 match-notification template expects, for one recipient.
  * Names follow the template's own doc block: `name` is the RECIPIENT, not the
- * partner.
+ * partner, and `goal_label` is the display label, never the raw enum.
  */
 export function matchNotificationVars(opts: {
   appUrl: string;
   recipientName: string | null;
   partnerName: string | null;
+  /** The raw enum value from the database, e.g. 'writing'. */
   goal: string;
   recipientAvatarUrl?: string | null;
   partnerAvatarUrl?: string | null;
 }): EmailVars {
   const assetBase = `${opts.appUrl}/email`;
-  const fallbackAvatar = `${assetBase}/default-avatar.png`;
+  // v5's default. The gold ring is a CSS border in the template, so a real
+  // photo and this glyph are framed identically.
+  const fallbackAvatar = `${assetBase}/avatar-glyph.png`;
   return {
     app_url: opts.appUrl,
     asset_base: assetBase,
     name: opts.recipientName ?? 'there',
     partner_name: opts.partnerName ?? 'your partner',
-    goal: opts.goal,
+    // v5 renamed {{goal}} to {{goal_label}} precisely because the sender was
+    // passing the enum. "Writing", not "writing".
+    goal_label: GOAL_LABELS[opts.goal] ?? 'Other',
     avatar_url: opts.recipientAvatarUrl || fallbackAvatar,
     partner_avatar_url: opts.partnerAvatarUrl || fallbackAvatar,
+    // Points at Settings until notification preferences exist, per Salomeh.
+    unsubscribe_url: `${opts.appUrl}/settings`,
   };
 }
