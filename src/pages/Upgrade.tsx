@@ -37,7 +37,9 @@ export default function Upgrade() {
 
         {/* Top bar */}
         <div className="relative flex items-center justify-center mb-8">
-          <Link to="/settings" className="absolute left-0 top-1/2 -translate-y-1/2 flex">
+          {/* replace, not push: without it the stack grows a second Settings entry and
+              Settings' own back button walks forward into this screen again. */}
+          <Link to="/settings" replace className="absolute left-0 top-1/2 -translate-y-1/2 flex">
             <ChevronLeft size={24} strokeWidth={1.5} color="#2B2B2B" />
           </Link>
           <span style={{ color: '#2B2B2B', fontWeight: 600, fontSize: '1.1rem' }}>Upgrade</span>

@@ -150,7 +150,8 @@ export default function CheckIn() {
         {/* Top bar */}
         <div className="relative flex items-center justify-center mb-8">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/home')}
+            aria-label="Back"
             className="absolute left-0 flex items-center justify-center w-10 h-10"
           >
             <ChevronLeft size={24} strokeWidth={1.5} color="#2B2B2B" />

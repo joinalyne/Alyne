@@ -172,3 +172,43 @@ test('a signed-in user is kept off the sign-up form', async ({ page }) => {
   await expect(page.getByText('What are you working on?')).toBeVisible();
   await expect(page.getByPlaceholder('Email address')).toHaveCount(0);
 });
+
+test('you can always get back out of Settings and Upgrade', async ({ browser }) => {
+  // Jerome found this by clicking: Settings pushed /upgrade, /upgrade pushed
+  // /settings back, and Settings' navigate(-1) then walked FORWARD into Upgrade.
+  // History became Home > Settings > Upgrade > Settings with no way out.
+  const contexts: BrowserContext[] = [];
+  try {
+    const adaEmail = await createConfirmedUser('navA');
+    const boEmail = await createConfirmedUser('navB');
+    const adaCtx = await browser.newContext();
+    const boCtx = await browser.newContext();
+    contexts.push(adaCtx, boCtx);
+    const ada = await adaCtx.newPage();
+    const bo = await boCtx.newPage();
+
+    // Settings is only fully useful once matched, so set up a real pairing.
+    await signIn(ada, adaEmail);
+    await completeOnboarding(ada, 'NavA', 'Learning');
+    await signIn(bo, boEmail);
+    await completeOnboarding(bo, 'NavB', 'Learning');
+    await expect(bo.getByText("You've been matched with NavA!")).toBeVisible({ timeout: 20_000 });
+    await bo.getByRole('button', { name: /Say Hello/ }).click();
+
+    // Home > Settings > Upgrade > Settings, the exact path that used to trap.
+    await bo.goto('/settings');
+    // exact: the notifications row also contains the word "settings".
+    await expect(bo.getByText('Settings', { exact: true })).toBeVisible();
+    await bo.getByRole('link', { name: 'Upgrade' }).click();
+    await expect(bo).toHaveURL(/\/upgrade/);
+    await bo.getByRole('link').first().click();
+    await expect(bo).toHaveURL(/\/settings/);
+
+    // One press of back must leave Settings, not return to Upgrade.
+    await bo.getByRole('button', { name: 'Back' }).click();
+    await expect(bo).not.toHaveURL(/\/upgrade/);
+    await expect(bo).not.toHaveURL(/\/settings/);
+  } finally {
+    await Promise.all(contexts.map((c) => c.close()));
+  }
+});

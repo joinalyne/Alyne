@@ -125,8 +125,16 @@ export default function Settings() {
 
         {/* Top bar */}
         <div className="relative flex items-center justify-center pt-14 pb-8">
+          {/* Goes to a definite destination rather than navigate(-1).
+              History-based back loops here: Settings pushes /upgrade, /upgrade
+              pushes /settings back, so the stack becomes
+              Home > Settings > Upgrade > Settings and "back" walks forward into
+              Upgrade again with no way out. It also breaks arriving from a
+              notification deep link, where there is no history to go back to. */}
           <button
-            onClick={() => navigate(-1)}
+            type="button"
+            onClick={() => navigate('/home')}
+            aria-label="Back"
             className="absolute left-0 flex items-center justify-center w-10 h-10"
           >
             <ChevronLeft size={24} strokeWidth={1.5} color="#2B2B2B" />
