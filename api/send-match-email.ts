@@ -54,8 +54,21 @@ export default async function handler(req: Req, res: Res) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim() ?? process.env.SUPABASE_URL?.trim();
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim();
   const resendKey = process.env.RESEND_API_KEY?.trim();
-  const appUrl = process.env.APP_URL?.trim();
-  const from = process.env.EMAIL_FROM?.trim() ?? 'Alyne <hello@joinalyne.com>';
+
+  // APP_URL and EMAIL_FROM default rather than being required.
+  //
+  // Neither is secret and both are now settled facts: the app lives at the root
+  // of app.joinalyne.com, and mail sends from the verified hello@ address. Only
+  // RESEND_API_KEY genuinely has to be configured, because it is the one value
+  // that must not sit in the repository.
+  //
+  // That matters practically. Production environment variables can only be set
+  // by a Vercel team Owner or Admin, and I am a Developer, so every required
+  // variable is a round trip to Salomeh. Defaulting these takes that from three
+  // variables to one. The env var still wins where it is set, which is how
+  // preview deployments point at a preview host instead of production.
+  const appUrl = process.env.APP_URL?.trim() || 'https://app.joinalyne.com';
+  const from = process.env.EMAIL_FROM?.trim() || 'Alyne <hello@joinalyne.com>';
 
   if (!supabaseUrl || !anonKey) {
     return res.status(500).json({ error: 'Supabase env vars are not configured' });
@@ -64,9 +77,6 @@ export default async function handler(req: Req, res: Res) {
     // Explicit rather than a silent success: a missing key must not look like
     // a delivered email.
     return res.status(503).json({ error: 'RESEND_API_KEY is not configured' });
-  }
-  if (!appUrl) {
-    return res.status(500).json({ error: 'APP_URL is not configured' });
   }
 
   const authHeader = req.headers.authorization;
