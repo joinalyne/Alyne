@@ -5,6 +5,7 @@ import { getPartnerSnapshot, saveCheckIn, type CheckInType } from '../lib/supaba
 import { useVoiceRecorder, formatDuration, MAX_RECORDING_MS } from '../hooks/useVoiceRecorder';
 import { shouldOfferPush, enablePush, markAsked } from '../lib/push';
 import { useAuth } from '../contexts/useAuth';
+import { Alert } from '../components/Alert';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
@@ -259,7 +260,7 @@ export default function CheckIn() {
                 This browser cannot record audio. Try a photo or a written note instead.
               </p>
             ) : voice.state === 'denied' ? (
-              <p className="text-[0.9rem]" style={{ color: '#9b2c2c' }}>
+              <p className="text-[0.9rem]" style={{ color: 'var(--destructive)' }}>
                 Microphone access was blocked. You can allow it in your browser settings,
                 or check in with a photo or a note instead.
               </p>
@@ -326,13 +327,7 @@ export default function CheckIn() {
         ) : null}
 
         {error ? (
-          <p
-            role="alert"
-            className="mt-5 rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
-            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
-          >
-            {error}
-          </p>
+          <Alert>{error}</Alert>
         ) : null}
 
         {/* Send button */}

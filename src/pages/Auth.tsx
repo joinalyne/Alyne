@@ -2,6 +2,7 @@ import { AlyneWordmark } from '../components/AlyneWordmark';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { supabase, ensureProfile } from '../lib/supabase';
+import { Alert } from '../components/Alert';
 
 const inputStyle = {
   borderColor: 'rgba(43, 43, 43, 0.1)',
@@ -102,13 +103,7 @@ export default function Auth() {
         </div>
 
         {error ? (
-          <p
-            role="alert"
-            className="rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
-            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
-          >
-            {error}
-          </p>
+          <Alert>{error}</Alert>
         ) : null}
 
         {/* Auth Form */}

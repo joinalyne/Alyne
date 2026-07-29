@@ -6,6 +6,7 @@ import { supabase, updateDisplayName, changeGoal, uploadAvatar, type Goal } from
 import { useAuth } from '../contexts/useAuth';
 import { Avatar } from '../components/Avatar';
 import { pushSupport, enablePush, disablePush, type PushSupport } from '../lib/push';
+import { Alert } from '../components/Alert';
 
 const GOALS = [
   { id: 'fitness',     label: 'Fitness',     icon: Dumbbell },
@@ -412,13 +413,7 @@ export default function Settings() {
         ) : null}
 
         {error ? (
-          <p
-            role="alert"
-            className="mb-5 rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
-            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
-          >
-            {error}
-          </p>
+          <Alert>{error}</Alert>
         ) : null}
 
         {/* Sign out */}

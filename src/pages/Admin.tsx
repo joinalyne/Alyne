@@ -6,6 +6,7 @@ import {
   type AdminOverview, type AdminPair, type AdminQueueEntry,
 } from '../lib/supabase';
 import { goalLabel } from '../lib/goals';
+import { Alert } from '../components/Alert';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — internal tool, gated to Salomeh only.
@@ -209,13 +210,7 @@ export default function Admin() {
         </div>
 
         {error ? (
-          <p
-            role="alert"
-            className="mb-6 rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
-            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
-          >
-            {error}
-          </p>
+          <Alert>{error}</Alert>
         ) : null}
 
         {/* Needs attention */}

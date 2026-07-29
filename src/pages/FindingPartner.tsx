@@ -5,6 +5,7 @@ import Asset1 from '../imports/Asset_1-1.svg';
 import Asset2 from '../imports/Asset_2.svg';
 import { AlyneWordmark } from '../components/AlyneWordmark';
 import { enqueueAndMatch } from '../lib/supabase';
+import { Alert } from '../components/Alert';
 
 /** How often to re-check while waiting for someone to join the queue. */
 const POLL_MS = 5000;
@@ -209,13 +210,7 @@ export default function FindingPartner() {
           </motion.h1>
 
           {error ? (
-            <p
-              role="alert"
-              className="mx-2 rounded-[1.25rem] px-5 py-3 text-[0.9rem]"
-              style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
-            >
-              {error}
-            </p>
+            <Alert>{error}</Alert>
           ) : (
             <>
               <motion.p

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { updateGoal, type Goal } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
+import { Alert } from '../components/Alert';
 
 export default function GoalSelection() {
   const navigate = useNavigate();
@@ -65,13 +66,7 @@ export default function GoalSelection() {
         </div>
 
         {error ? (
-          <p
-            role="alert"
-            className="rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
-            style={{ backgroundColor: '#fdf2f2', color: '#9b2c2c' }}
-          >
-            {error}
-          </p>
+          <Alert>{error}</Alert>
         ) : null}
 
         {/* Goal Grid */}
