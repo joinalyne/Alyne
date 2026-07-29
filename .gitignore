@@ -31,3 +31,6 @@ dist-ssr
 /test-results/
 /playwright-report/
 /coverage/
+
+# Rotated VAPID keypair, never commit
+.vapid-new.json

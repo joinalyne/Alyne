@@ -66,7 +66,7 @@ export function shouldOfferPush(justCheckedIn: boolean): boolean {
  * Only the matching PRIVATE key has to be set, server-side, to actually send.
  */
 const DEFAULT_VAPID_PUBLIC_KEY =
-  'BG4cYI7IE94HYTjibOeJPI4Skri22tvuxHTKTlSz9mKDXfEo_WmTaLCV_3Sw9gLOfQBeVWYhICgX5qhmMd-X3I4';
+  'BMTB2zX7yeQp96twPlwuDwbVQdMg9F508rY--FRtOwfOW3VYGKojak4nqNmPpqXEzsf5uw0TiyHE5x4GyJd5UX8';
 
 function vapidPublicKey(): string {
   return import.meta.env.VITE_VAPID_PUBLIC_KEY?.trim() || DEFAULT_VAPID_PUBLIC_KEY;
