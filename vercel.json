@@ -1,10 +1,19 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "functions": {
     "api/send-match-email.ts": {
       "includeFiles": "emails/**"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/send-notifications",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }

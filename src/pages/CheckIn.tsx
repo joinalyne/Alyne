@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { getPartnerSnapshot, saveCheckIn, type CheckInType } from '../lib/supabase';
 import { useVoiceRecorder, formatDuration, MAX_RECORDING_MS } from '../hooks/useVoiceRecorder';
+import { shouldOfferPush, enablePush, markAsked } from '../lib/push';
 import { useAuth } from '../contexts/useAuth';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
@@ -18,6 +19,11 @@ export default function CheckIn() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const { refreshProfile } = useAuth();
   const voice = useVoiceRecorder();
+  // Her spec: ask about notifications AFTER a first check-in, never on load,
+  // and behind a soft in-app ask so the browser prompt is only reached by
+  // someone who has already said yes.
+  const [offerPush, setOfferPush] = useState(false);
+  const [enabling, setEnabling] = useState(false);
 
   // Real partner, not the mock "Jamie". Saving a check-in is M2 — see
   // handleSend — but showing a signed-in user a stranger's name is not a
@@ -60,6 +66,10 @@ export default function CheckIn() {
       if (result.ok) {
         // Refresh so Home shows the streak this check-in just advanced.
         await refreshProfile();
+        if (shouldOfferPush(true)) {
+          setOfferPush(true);
+          return;
+        }
         navigate('/home', { replace: true });
         return;
       }
@@ -80,6 +90,57 @@ export default function CheckIn() {
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
   };
+
+  // The soft ask. Shown once, in place of returning to Home, so it lands on the
+  // one moment the user has just proved they care about the habit.
+  if (offerPush) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div
+          className="w-full max-w-md p-6 rounded-[1.25rem] text-center"
+          style={{ backgroundColor: '#FFFFFF', boxShadow: CARD_SHADOW }}
+        >
+          <h2 className="text-[1.25rem] mb-2" style={{ color: '#1A3328', fontWeight: 600 }}>
+            Checked in.
+          </h2>
+          <p className="text-[0.95rem] leading-relaxed mb-6" style={{ color: '#8A8580' }}>
+            Want to know the moment {partner.name} checks in?
+          </p>
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={enabling}
+              onClick={async () => {
+                setEnabling(true);
+                // The real browser prompt fires only here, from a gesture.
+                await enablePush();
+                navigate('/home', { replace: true });
+              }}
+              className="w-full rounded-[1.25rem] py-4 disabled:opacity-60"
+              style={{ backgroundColor: '#104241', color: '#FFFFFF', fontWeight: 700 }}
+            >
+              {enabling ? 'One moment…' : 'Enable notifications'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Remember the refusal so they are never asked again, per spec.
+                markAsked();
+                navigate('/home', { replace: true });
+              }}
+              className="w-full rounded-[1.25rem] py-4"
+              style={{
+                backgroundColor: '#FFFFFF', color: '#2B2B2B', fontWeight: 600,
+                border: '1.5px solid rgba(43,43,43,0.15)',
+              }}
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-start justify-center p-6 bg-background">
