@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router';
 import { supabase, updateDisplayName, changeGoal, uploadAvatar, type Goal } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
 import { Avatar } from '../components/Avatar';
+import { pushSupport, enablePush, disablePush, type PushSupport } from '../lib/push';
 
 const GOALS = [
   { id: 'fitness',     label: 'Fitness',     icon: Dumbbell },
@@ -39,6 +40,11 @@ export default function Settings() {
   const [pendingGoal, setPendingGoal] = useState<Goal | null>(null);
   const [changing, setChanging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Her spec: never re-prompt after a refusal, surface a Settings row instead.
+  // Read once on render rather than in an effect; Notification.permission is a
+  // synchronous browser value, not something to synchronise into state.
+  const [pushState, setPushState] = useState<PushSupport>(() => pushSupport());
+  const [pushBusy, setPushBusy] = useState(false);
 
   const name = savedName ?? profile?.display_name ?? '';
   const email = profile?.email ?? '';
@@ -349,6 +355,61 @@ export default function Settings() {
             </Link>
           </div>
         </div>
+
+        {/* Notifications */}
+        {pushState !== 'unsupported' ? (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF', borderRadius: '1.25rem',
+              boxShadow: CARD_SHADOW, marginBottom: '20px', overflow: 'hidden',
+            }}
+          >
+            <p
+              className="text-[0.75rem] uppercase px-5 pt-4 pb-2"
+              style={{ color: '#8A8580', fontWeight: 600, letterSpacing: '0.07em' }}
+            >
+              Notifications
+            </p>
+            <div className="flex items-center justify-between px-5 pb-4 pt-1">
+              <div className="pr-4">
+                <p className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>
+                  {pushState === 'granted' ? 'On' : 'Off'}
+                </p>
+                <p className="text-[0.78rem] mt-0.5" style={{ color: '#8A8580' }}>
+                  {pushState === 'denied'
+                    ? 'Blocked in your browser settings. You will need to allow it there first.'
+                    : pushState === 'granted'
+                      ? 'You will know when your partner checks in.'
+                      : 'Know the moment your partner checks in.'}
+                </p>
+              </div>
+              {pushState !== 'denied' ? (
+                <button
+                  type="button"
+                  disabled={pushBusy}
+                  onClick={async () => {
+                    setPushBusy(true);
+                    try {
+                      if (pushState === 'granted') {
+                        await disablePush();
+                        setPushState('ready');
+                      } else {
+                        const enabled = await enablePush();
+                        setPushState(enabled ? 'granted' : pushSupport());
+                      }
+                    } finally {
+                      setPushBusy(false);
+                    }
+                  }}
+                  className="text-[0.875rem] disabled:opacity-60"
+                  style={{ color: '#A8893F', fontWeight: 600, whiteSpace: 'nowrap' }}
+                >
+                  {pushBusy ? '…' : pushState === 'granted' ? 'Turn off' : 'Turn on'}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         {error ? (
           <p
