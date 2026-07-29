@@ -2,6 +2,7 @@ import { Camera, Mic, Edit3, ChevronLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { getPartnerSnapshot, saveCheckIn, type CheckInType } from '../lib/supabase';
+import { useVoiceRecorder, formatDuration, MAX_RECORDING_MS } from '../hooks/useVoiceRecorder';
 import { useAuth } from '../contexts/useAuth';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
@@ -16,6 +17,7 @@ export default function CheckIn() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const { refreshProfile } = useAuth();
+  const voice = useVoiceRecorder();
 
   // Real partner, not the mock "Jamie". Saving a check-in is M2 — see
   // handleSend — but showing a signed-in user a stranger's name is not a
@@ -50,11 +52,10 @@ export default function CheckIn() {
     setError(null);
     setSaving(true);
     try {
-      const result = await saveCheckIn(
-        selectedOption as CheckInType,
-        message,
-        photoFile ?? undefined,
-      );
+      const media =
+        selectedOption === 'voice' ? (voice.blob ?? undefined) : (photoFile ?? undefined);
+
+      const result = await saveCheckIn(selectedOption as CheckInType, message, media);
 
       if (result.ok) {
         // Refresh so Home shows the streak this check-in just advanced.
@@ -116,6 +117,9 @@ export default function CheckIn() {
                   const next = isSelected ? null : option.id;
                   setSelectedOption(next);
                   setError(null);
+                  // Switching away from voice must release the microphone, not
+                  // just hide the controls.
+                  if (next !== 'voice') voice.reset();
                   if (next === 'photo') photoInputRef.current?.click();
                 }}
                 className="w-full text-left transition-all duration-200 active:scale-[0.98]"
@@ -184,6 +188,71 @@ export default function CheckIn() {
           onChange={onPhotoPicked}
         />
 
+        {selectedOption === 'voice' ? (
+          <div
+            className="mt-5 p-5 rounded-[1.25rem] text-center"
+            style={{ backgroundColor: '#FFFFFF', boxShadow: CARD_SHADOW }}
+          >
+            {voice.state === 'unsupported' ? (
+              <p className="text-[0.9rem]" style={{ color: '#8A8580' }}>
+                This browser cannot record audio. Try a photo or a written note instead.
+              </p>
+            ) : voice.state === 'denied' ? (
+              <p className="text-[0.9rem]" style={{ color: '#9b2c2c' }}>
+                Microphone access was blocked. You can allow it in your browser settings,
+                or check in with a photo or a note instead.
+              </p>
+            ) : voice.state === 'recording' ? (
+              <>
+                <p className="text-[1.4rem] tabular-nums" style={{ color: '#104241', fontWeight: 700 }}>
+                  {formatDuration(voice.elapsedMs)}
+                </p>
+                <p className="text-[0.78rem] mb-4" style={{ color: '#8A8580' }}>
+                  Recording, up to {formatDuration(MAX_RECORDING_MS)}
+                </p>
+                <button
+                  type="button"
+                  onClick={voice.stop}
+                  className="w-full rounded-[1.25rem] py-3"
+                  style={{ backgroundColor: '#104241', color: '#FFFFFF', fontWeight: 700 }}
+                >
+                  Stop recording
+                </button>
+              </>
+            ) : voice.state === 'recorded' && voice.previewUrl ? (
+              <>
+                <p className="text-[0.78rem] mb-3" style={{ color: '#8A8580' }}>
+                  {formatDuration(voice.elapsedMs)} recorded. Have a listen before you send.
+                </p>
+                {/* Playback before sending, because a voice note is the one
+                    check-in you cannot proofread. */}
+                <audio controls src={voice.previewUrl} className="w-full mb-3" />
+                <button
+                  type="button"
+                  onClick={voice.reset}
+                  className="w-full rounded-[1.25rem] py-3"
+                  style={{
+                    backgroundColor: '#FFFFFF', color: '#2B2B2B', fontWeight: 600,
+                    border: '1.5px solid rgba(43,43,43,0.15)',
+                  }}
+                >
+                  Record again
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void voice.start()}
+                disabled={voice.state === 'requesting'}
+                className="w-full rounded-[1.25rem] py-3 disabled:opacity-60"
+                style={{ backgroundColor: '#104241', color: '#FFFFFF', fontWeight: 700 }}
+              >
+                {voice.state === 'requesting' ? 'Waiting for microphone…' : 'Start recording'}
+              </button>
+            )}
+          </div>
+        ) : null}
+
         {photoPreview ? (
           <div className="mt-5">
             <img
@@ -210,13 +279,20 @@ export default function CheckIn() {
           <button
             type="button"
             onClick={() => void handleSend()}
-            disabled={saving || !selectedOption || (selectedOption === 'voice')}
+            disabled={
+              saving ||
+              !selectedOption ||
+              (selectedOption === 'voice' && !voice.blob) ||
+              (selectedOption === 'photo' && !photoFile)
+            }
             title={
-              selectedOption === 'voice'
-                ? 'Voice notes are not recordable yet'
-                : !selectedOption
-                  ? 'Choose how you want to check in'
-                  : undefined
+              !selectedOption
+                ? 'Choose how you want to check in'
+                : selectedOption === 'voice' && !voice.blob
+                  ? 'Record a note first'
+                  : selectedOption === 'photo' && !photoFile
+                    ? 'Choose a photo first'
+                    : undefined
             }
             className="w-full transition-all duration-200 disabled:opacity-50"
             style={{

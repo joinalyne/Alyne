@@ -304,6 +304,27 @@ export async function notifyMatch(matchId: string): Promise<void> {
 
 export type CheckInType = 'photo' | 'voice' | 'text';
 
+/**
+ * File extension for a recorded blob, from its actual MIME type.
+ *
+ * Exported so it can be tested directly: browsers disagree about audio
+ * containers, and getting this wrong stores a file whose name contradicts its
+ * contents, which then fails to play back.
+ */
+export function extensionForMimeType(mimeType: string, kind: CheckInType): string {
+  const type = (mimeType || '').toLowerCase();
+  if (type.includes('webm')) return 'webm';
+  if (type.includes('mp4') || type.includes('m4a')) return 'm4a';
+  if (type.includes('aac')) return 'aac';
+  if (type.includes('ogg')) return 'ogg';
+  if (type.includes('mpeg')) return 'mp3';
+  if (type.includes('png')) return 'png';
+  if (type.includes('jpeg') || type.includes('jpg')) return 'jpg';
+  if (type.includes('heic')) return 'heic';
+  // Last resort, by kind rather than a meaningless .bin.
+  return kind === 'voice' ? 'webm' : 'jpg';
+}
+
 export type CheckInResult =
   | { ok: true }
   | { ok: false; alreadyToday: true }
@@ -333,10 +354,13 @@ export async function saveCheckIn(
     if (media) {
       // The {user_id}/ prefix is load-bearing: storage RLS checks the first
       // path segment against auth.uid().
+      // Derived from the blob's own type, not assumed. Safari's MediaRecorder
+      // cannot produce webm and returns mp4/aac, so hardcoding webm would store
+      // iPhone recordings under a filename that misrepresents their contents.
       const extension =
-        media instanceof File ? (media.name.split('.').pop() ?? 'bin')
-        : type === 'voice' ? 'webm'
-        : 'jpg';
+        media instanceof File
+          ? (media.name.split('.').pop() ?? 'bin')
+          : extensionForMimeType(media.type, type);
       const path = `${userId}/${localDate}-${type}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
