@@ -360,6 +360,54 @@ async function main() {
   check('changing to a goal with someone waiting pairs at once',
     typeof instant === 'string', `match ${String(instant).slice(0, 8)}`);
 
+  console.log('\n— private check-in media —');
+  // The partner must be able to play a voice note or see a photo. Storage RLS
+  // is the whole mechanism, and a failure here is silent: the card would just
+  // show "could not be loaded" with no error anywhere.
+  const five = await makeUser('five', 'Five', 'other');
+  const six = await makeUser('six', 'Six', 'other');
+  await five.client.rpc('enqueue_and_match');
+  await six.client.rpc('enqueue_and_match');
+
+  const audio = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'audio/webm' });
+  const mediaPath = `${five.id}/${today}-voice.webm`;
+  const { error: upErr } = await five.client.storage
+    .from('check-ins').upload(mediaPath, audio, { upsert: true, contentType: 'audio/webm' });
+  check('a user can upload their own check-in media', !upErr, upErr?.message);
+
+  const { error: wrongFolder } = await six.client.storage
+    .from('check-ins')
+    .upload(`${five.id}/sneaky.webm`, audio, { upsert: true, contentType: 'audio/webm' });
+  check('nobody can write into someone else\'s folder', !!wrongFolder, wrongFolder?.message?.slice(0, 40));
+
+  const { data: ownUrl } = await five.client.storage
+    .from('check-ins').createSignedUrl(mediaPath, 60);
+  check('the owner can sign a URL for their own media', !!ownUrl?.signedUrl);
+
+  const { data: partnerUrl, error: partnerErr } = await six.client.storage
+    .from('check-ins').createSignedUrl(mediaPath, 60);
+  check('the PARTNER can sign a URL for it', !!partnerUrl?.signedUrl, partnerErr?.message);
+
+  if (partnerUrl?.signedUrl) {
+    const fetched = await fetch(partnerUrl.signedUrl);
+    check('and the signed URL actually serves the file', fetched.ok, `HTTP ${fetched.status}`);
+  }
+
+  const { data: outsiderUrl } = await cy.client.storage
+    .from('check-ins').createSignedUrl(mediaPath, 60);
+  check('an outsider cannot sign a URL for it', !outsiderUrl?.signedUrl);
+
+  // Visibility must close with the pairing, exactly as profile visibility does.
+  const { data: theirMatch } = await admin
+    .from('matches').select('id').eq('status', 'active')
+    .or(`user_a.eq.${five.id},user_b.eq.${five.id}`).maybeSingle();
+  await admin.from('matches')
+    .update({ status: 'ended', ended_at: new Date().toISOString(), ended_by: 'admin' })
+    .eq('id', theirMatch.id);
+  const { data: afterEnd } = await six.client.storage
+    .from('check-ins').createSignedUrl(mediaPath, 60);
+  check('an ex-partner loses access once the pairing ends', !afterEnd?.signedUrl);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);

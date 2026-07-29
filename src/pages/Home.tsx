@@ -7,7 +7,8 @@ import { Avatar } from '../components/Avatar';
 import { supabase, getPartnerSnapshot, type PartnerSnapshot } from '../lib/supabase';
 import { goalLabel } from '../lib/goals';
 import { useAuth } from '../contexts/useAuth';
-import { todayLocalDate, relativeTime } from '../lib/dates';
+import { todayLocalDate } from '../lib/dates';
+import { PartnerCheckIn } from '../components/PartnerCheckIn';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
@@ -163,20 +164,15 @@ export default function Home() {
           </button>
         </Link>
 
-        {/* Partner activity */}
-        <p className="text-center text-[0.9rem] mb-8 leading-relaxed" style={{ color: '#8A8580' }}>
-          {partnerLast ? (
-            <>
-              {partnerName} checked in {relativeTime(partnerLast.createdAt)}.<br />
-              Keep your streak going! 🌱
-            </>
-          ) : (
-            <>
-              {partnerName} hasn't checked in yet.<br />
-              Be the one who goes first.
-            </>
-          )}
-        </p>
+        {/* Partner activity — the check-in itself, not just when it happened. */}
+        {partnerLast ? (
+          <PartnerCheckIn checkIn={partnerLast} partnerName={partnerName} />
+        ) : (
+          <p className="text-center text-[0.9rem] mb-8 leading-relaxed" style={{ color: '#8A8580' }}>
+            {partnerName} hasn&apos;t checked in yet.<br />
+            Be the one who goes first.
+          </p>
+        )}
 
         {/* Streak stats */}
         <div className="flex items-center justify-center gap-10">
