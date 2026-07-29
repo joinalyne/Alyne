@@ -29,6 +29,14 @@ type Res = {
   json: (body: unknown) => void;
 };
 
+// Read at runtime, so Vercel's import tracing cannot see it and would not bundle
+// `emails/` at all. vercel.json therefore carries `includeFiles: "emails/**"` for
+// this function; without it the first real send fails with ENOENT.
+//
+// That entry cannot be commented in place. vercel.json is validated against a
+// strict schema that rejects unknown properties, including a "//" key used as a
+// comment — doing so fails every build with "Schema verification failed" while
+// local builds stay green, because nothing local reads vercel.json.
 const TEMPLATE_PATH = join(process.cwd(), 'emails', 'match-notification.html');
 
 /** Read once per cold start rather than per request. */
