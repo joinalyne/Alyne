@@ -12,18 +12,51 @@ import { supabase } from './supabase';
 
 const PROMPTED_KEY = 'alyne:push-asked';
 
-export type PushSupport = 'ready' | 'unsupported' | 'denied' | 'granted';
+export type PushSupport =
+  | 'ready'         // can ask now
+  | 'granted'       // already on
+  | 'denied'        // blocked at browser level
+  | 'needs-install' // iOS, but not yet added to the home screen
+  | 'unsupported';  // genuinely cannot
+
+/** Running as an installed app rather than in a browser tab. */
+export function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    // iOS predates the standard media query and uses its own flag.
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
+/** iPhone or iPad, including iPads reporting as desktop Safari. */
+export function isIos(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
 
 /**
- * iOS is the important case. Safari only allows push once the PWA has been
- * added to the home screen, so on an iPhone in a browser tab there is nothing
- * to offer and asking would be a dead end.
+ * iOS is the important case. Safari only allows push once the app has been added
+ * to the home screen.
+ *
+ * That used to return 'unsupported', and Settings hid the row entirely, so a
+ * mobile user never learned notifications existed at all. Jerome spotted it.
+ * 'needs-install' is now distinct, so the row can explain what to do instead of
+ * silently disappearing on the platform this app is mostly used on.
  */
 export function pushSupport(): PushSupport {
   if (typeof window === 'undefined') return 'unsupported';
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-    return 'unsupported';
-  }
+
+  const hasApi =
+    'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+  // On iOS the push APIs are absent in a tab and present once installed, so an
+  // absent API there means "not installed yet" rather than "never possible".
+  if (!hasApi) return isIos() && !isStandalone() ? 'needs-install' : 'unsupported';
+
   if (Notification.permission === 'denied') return 'denied';
   if (Notification.permission === 'granted') return 'granted';
   return 'ready';
@@ -55,6 +88,8 @@ export function markAsked(): void {
  * once. `justCheckedIn` is the trigger her spec specifies.
  */
 export function shouldOfferPush(justCheckedIn: boolean): boolean {
+  // Deliberately only 'ready'. Prompting someone who must install the app first
+  // would be a dead end, and their Settings row explains it instead.
   return justCheckedIn && pushSupport() === 'ready' && !hasBeenAsked();
 }
 

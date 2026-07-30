@@ -8,6 +8,7 @@ import { supabase, getPartnerSnapshot, type PartnerSnapshot } from '../lib/supab
 import { goalLabel } from '../lib/goals';
 import { useAuth } from '../contexts/useAuth';
 import { todayLocalDate } from '../lib/dates';
+import { checkedInMessage } from '../lib/checkedInMessage';
 import { PartnerCheckIn } from '../components/PartnerCheckIn';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
@@ -62,7 +63,13 @@ export default function Home() {
         {/* Subtitle */}
         <p className="text-center text-[0.95rem] mb-8" style={{ color: '#8A8580' }}>
           {checkedInToday
-            ? "You've shown up today. Nice."
+            ? /* Rotates daily through Salomeh's seven variants. Stable within a
+                 day, so navigating away and back does not change it. */
+              checkedInMessage({
+                streak: myStreak,
+                partnerName: snapshot.partner.displayName,
+                userId: profile?.id ?? null,
+              })
             : "Your partner's counting on you today."}
         </p>
 
