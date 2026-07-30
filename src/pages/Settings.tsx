@@ -6,6 +6,7 @@ import { supabase, updateDisplayName, changeGoal, uploadAvatar, type Goal } from
 import { useAuth } from '../contexts/useAuth';
 import { Avatar } from '../components/Avatar';
 import { pushSupport, enablePush, disablePush, type PushSupport } from '../lib/push';
+import { openBillingPortal } from '../lib/supabase';
 import { Alert } from '../components/Alert';
 
 const GOALS = [
@@ -46,6 +47,7 @@ export default function Settings() {
   // synchronous browser value, not something to synchronise into state.
   const [pushState, setPushState] = useState<PushSupport>(() => pushSupport());
   const [pushBusy, setPushBusy] = useState(false);
+  const [portalBusy, setPortalBusy] = useState(false);
 
   const name = savedName ?? profile?.display_name ?? '';
   const email = profile?.email ?? '';
@@ -355,13 +357,37 @@ export default function Settings() {
               <p className="text-[0.78rem] mb-0.5" style={{ color: '#8A8580' }}>Plan</p>
               <p className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>{plan}</p>
             </div>
-            <Link
-              to="/upgrade"
-              className="text-[0.875rem]"
-              style={{ color: '#A8893F', fontWeight: 600 }}
-            >
-              Upgrade
-            </Link>
+            {profile?.plan === 'paid' ? (
+              /* Cancelling and changing a card happen in Stripe's portal, which
+                 Salomeh configured to return here with plan switching off. This
+                 endpoint never writes billing state; whatever they do comes back
+                 as a webhook, which is the single writer. */
+              <button
+                type="button"
+                disabled={portalBusy}
+                onClick={async () => {
+                  setPortalBusy(true);
+                  const url = await openBillingPortal();
+                  if (url) window.location.href = url;
+                  else {
+                    setError('Could not open the billing portal. Please try again.');
+                    setPortalBusy(false);
+                  }
+                }}
+                className="text-[0.875rem] disabled:opacity-60"
+                style={{ color: '#A8893F', fontWeight: 600, whiteSpace: 'nowrap' }}
+              >
+                {portalBusy ? 'Opening…' : 'Manage'}
+              </button>
+            ) : (
+              <Link
+                to="/upgrade"
+                className="text-[0.875rem]"
+                style={{ color: '#A8893F', fontWeight: 600 }}
+              >
+                Upgrade
+              </Link>
+            )}
           </div>
         </div>
 

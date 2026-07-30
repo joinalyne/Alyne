@@ -530,3 +530,56 @@ export async function getRequeueNotice(): Promise<RequeueNotice | null> {
   if (!row?.reason || !row?.match_id) return null;
   return { reason: row.reason as 'admin' | 'goal_change', matchId: row.match_id };
 }
+
+// ── Billing (M3) ─────────────────────────────────────────────────────────────
+
+/**
+ * Start Stripe Checkout. Returns the URL to send the browser to.
+ *
+ * Nothing about the price or the trial is decided here. The client only says
+ * monthly or annual; the server holds the price IDs and applies the 7 day
+ * trial, so a modified request cannot buy a different plan.
+ */
+export async function startCheckout(billing: 'monthly' | 'annual'): Promise<
+  { ok: true; url: string } | { ok: false; alreadyPaid: boolean; message: string }
+> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return { ok: false, alreadyPaid: false, message: 'Please sign in again.' };
+
+  const response = await fetch('/api/create-checkout-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ billing }),
+  });
+
+  if (response.ok) {
+    const { url } = (await response.json()) as { url: string };
+    return { ok: true, url };
+  }
+
+  const body = (await response.json().catch(() => ({}))) as { error?: string; alreadyPaid?: boolean };
+  return {
+    ok: false,
+    alreadyPaid: !!body.alreadyPaid,
+    message: body.error ?? 'Could not start checkout. Please try again.',
+  };
+}
+
+/** Open Stripe's Customer Portal to change card details or cancel. */
+export async function openBillingPortal(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return null;
+
+  const response = await fetch('/api/create-portal-session', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    console.error('[billing] portal failed:', response.status, await response.text());
+    return null;
+  }
+  const { url } = (await response.json()) as { url: string };
+  return url;
+}

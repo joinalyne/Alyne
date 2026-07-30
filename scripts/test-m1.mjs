@@ -550,6 +550,79 @@ async function main() {
   check('a new match clears the notice', (clearedNotice ?? []).length === 0,
     `${clearedNotice?.length} rows`);
 
+  console.log('\n— billing state (M3) —');
+  // No Stripe credentials are needed for any of this. The decisions that matter
+  // are what a Stripe status MEANS and whether a redelivered event can be applied
+  // twice, and both live in SQL precisely so they can be tested directly.
+  const payer = await makeUser('payer', 'Payer', 'fitness');
+
+  const setState = (status, periodEnd = null) =>
+    admin.rpc('apply_subscription_state', {
+      p_user_id: payer.id,
+      p_customer_id: 'cus_test_' + payer.id.slice(0, 8),
+      p_subscription_id: 'sub_test_1',
+      p_status: status,
+      p_current_period_end: periodEnd,
+    });
+  const planOf = async () => {
+    const { data } = await admin
+      .from('profiles').select('plan, subscription_status').eq('id', payer.id).single();
+    return data;
+  };
+
+  // A trial must grant access. That is the point of offering one.
+  await setState('trialing');
+  let state = await planOf();
+  check('trialing counts as paid', state.plan === 'paid', `${state.plan} / ${state.subscription_status}`);
+
+  await setState('active');
+  state = await planOf();
+  check('active is paid', state.plan === 'paid', state.plan);
+
+  // Stripe retries a failed card for days. Cutting someone off on the first
+  // failure would punish an expired card rather than a decision not to pay.
+  await setState('past_due');
+  state = await planOf();
+  check('past_due stays paid while Stripe retries', state.plan === 'paid', state.plan);
+
+  await setState('canceled');
+  state = await planOf();
+  check('canceled drops to free', state.plan === 'free', state.plan);
+
+  await setState('incomplete_expired');
+  state = await planOf();
+  check('an unrecognised or failed status is free, not paid', state.plan === 'free', state.plan);
+
+  // A user must never be able to award themselves a plan.
+  const { error: selfPlan } = await payer.client.rpc('apply_subscription_state', {
+    p_user_id: payer.id, p_customer_id: 'x', p_subscription_id: 'x',
+    p_status: 'active', p_current_period_end: null,
+  });
+  check('a user cannot call the billing writer', !!selfPlan, selfPlan?.code);
+
+  const { error: selfLookup } = await payer.client.rpc('user_for_stripe_customer', {
+    p_customer_id: 'cus_test',
+  });
+  check('a user cannot map customers back to people', !!selfLookup, selfLookup?.code);
+
+  // The customer mapping the webhook depends on for every event after the first.
+  await setState('active');
+  const { data: mapped } = await admin.rpc('user_for_stripe_customer', {
+    p_customer_id: 'cus_test_' + payer.id.slice(0, 8),
+  });
+  check('a Stripe customer resolves back to the right user', mapped === payer.id);
+
+  // Idempotency. A duplicated payment_failed must not downgrade someone who has
+  // already recovered.
+  const evt = 'evt_test_' + Date.now();
+  const firstEvent = await admin.from('stripe_events').insert({ id: evt, type: 'invoice.payment_failed' });
+  const replay = await admin.from('stripe_events').insert({ id: evt, type: 'invoice.payment_failed' });
+  check('a redelivered Stripe event is rejected', !firstEvent.error && !!replay.error, replay.error?.code);
+  await admin.from('stripe_events').delete().eq('id', evt);
+
+  const { data: eventsVisible } = await payer.client.from('stripe_events').select('id');
+  check('event history is not readable by users', (eventsVisible ?? []).length === 0);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);

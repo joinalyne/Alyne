@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { ChevronLeft, Zap, Target, SlidersHorizontal, Map, Check } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, Navigate } from 'react-router';
+import { startCheckout } from '../lib/supabase';
+import { useAuth } from '../contexts/useAuth';
+import { Alert } from '../components/Alert';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UPGRADE — the paywall screen. Design-complete; Jerome wires the money.
@@ -8,10 +11,10 @@ import { Link } from 'react-router';
 // Pricing (locked): $9.99/mo · $79.99/yr (~33% off) · 7-day free trial.
 // Launch paid feature: priority rematch. Other benefits shown as "coming soon".
 //
-// TODO(Jerome): "Start Free Trial" → create Stripe Checkout Session with the
-//   selected price ID and trial_period_days: 7, then redirect to session.url.
-// TODO(Jerome): if profiles.plan === 'paid', route users away from this screen
-//   (or swap CTA for a Customer Portal link).
+// Wired to Stripe Checkout. The price IDs and the 7 day trial live on the
+// server: this screen only says monthly or annual, so a tampered request cannot
+// buy a different plan. Anyone already paying is sent to Settings, where the
+// billing portal lives, rather than being shown a second chance to subscribe.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
@@ -23,13 +26,31 @@ const COMING_SOON = [
 ];
 
 export default function Upgrade() {
+  const { profile } = useAuth();
   const [billing, setBilling] = useState<'monthly' | 'annual'>('annual');
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const startTrial = () => {
-    // TODO(Jerome): POST to the checkout-session endpoint with the price ID
-    // for `billing`, trial_period_days: 7 — then window.location = session.url
-    console.log('start trial:', billing);
+  const startTrial = async () => {
+    setError(null);
+    setStarting(true);
+    const result = await startCheckout(billing);
+    if (result.ok) {
+      // Full navigation, not a router push: Checkout is on Stripe's domain.
+      window.location.href = result.url;
+      return;
+    }
+    setStarting(false);
+    setError(
+      result.alreadyPaid
+        ? 'You are already subscribed. Manage it from Settings.'
+        : result.message,
+    );
   };
+
+  // Already paying, so there is nothing to sell. Sending them here again would
+  // create a second subscription and bill them twice.
+  if (profile?.plan === 'paid') return <Navigate to="/settings" replace />;
 
   return (
     <div className="min-h-screen bg-background px-6 py-10">
@@ -120,9 +141,13 @@ export default function Upgrade() {
           </div>
         </div>
 
+        {error ? <div className="mb-4"><Alert>{error}</Alert></div> : null}
+
         {/* CTA */}
         <button
-          onClick={startTrial}
+          type="button"
+          onClick={() => void startTrial()}
+          disabled={starting}
           className="w-full rounded-[1.25rem] py-[18px] transition-all duration-200 active:scale-[0.98]"
           style={{
             background: '#104241',
@@ -132,7 +157,7 @@ export default function Upgrade() {
             boxShadow: '0 4px 20px rgba(16,66,65,0.25)',
           }}
         >
-          Start Free Trial
+          {starting ? 'Opening checkout…' : 'Start Free Trial'}
         </button>
         <p className="text-center text-[0.8rem] mt-3" style={{ color: '#8A8580' }}>
           Free for 7 days, then {billing === 'monthly' ? '$9.99/month' : '$79.99/year'}. Cancel anytime.
