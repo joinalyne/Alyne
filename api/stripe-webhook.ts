@@ -35,16 +35,50 @@ type Req = {
   method?: string;
   headers: Record<string, string | string[] | undefined>;
   on: (event: string, listener: (chunk?: unknown) => void) => void;
+  /** Present when Vercel has already parsed the body. */
+  body?: unknown;
+  /** Some Vercel runtimes expose the untouched bytes here. */
+  rawBody?: Buffer | string;
 };
 type Res = { status: (code: number) => Res; json: (body: unknown) => void };
 
-function readRawBody(req: Req): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
+/**
+ * Stripe signs the raw bytes, so the body must arrive untouched.
+ *
+ * Three sources, in order of trustworthiness, because `config.api.bodyParser`
+ * is a NEXT.JS convention and this is a Vite project: it may simply be ignored,
+ * in which case the stream is already consumed and yields nothing.
+ *
+ * The last resort re-serialises the parsed body, which will only verify if the
+ * JSON round-trips byte for byte. It usually does not, so it warns loudly rather
+ * than pretending to be equivalent.
+ */
+async function readRawBody(req: Req): Promise<Buffer> {
+  if (req.rawBody) {
+    return Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(req.rawBody);
+  }
+
+  const streamed = await new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
+    let settled = false;
     req.on('data', (chunk) => chunks.push(Buffer.from(chunk as Buffer)));
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
+    req.on('end', () => { settled = true; resolve(Buffer.concat(chunks)); });
+    req.on('error', (err) => { if (!settled) reject(err as unknown as Error); });
   });
+
+  if (streamed.length > 0) return streamed;
+
+  if (req.body !== undefined) {
+    console.warn(
+      '[stripe] the request body was already parsed, so the raw bytes are gone. ' +
+      'Falling back to re-serialising, which will usually fail signature ' +
+      'verification. config.api.bodyParser is a Next.js option and does not ' +
+      'apply here.',
+    );
+    return Buffer.from(typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+  }
+
+  return streamed;
 }
 
 /** Stripe timestamps are seconds; Postgres wants an ISO string. */
@@ -91,12 +125,27 @@ export default async function handler(req: Req, res: Res) {
   // Idempotency before anything else. Stripe retries on any non-2xx and can
   // deliver the same event twice even after a success, so a duplicated
   // payment_failed could otherwise downgrade someone who had already recovered.
+  //
+  // ONLY a unique violation means "already seen". The first version returned 200
+  // on ANY insert error, which turned a configuration problem into a silent
+  // success: Stripe recorded five 200s with a 0% error rate while nothing was
+  // written and no plan was ever upgraded. Anything other than 23505 is a real
+  // failure and must be visible, and must make Stripe retry.
   const { error: seenError } = await db
     .from('stripe_events')
     .insert({ id: event.id, type: event.type });
-  if (seenError) {
-    // Primary key conflict: already handled. 200 so Stripe stops retrying.
+
+  if (seenError?.code === '23505') {
     return res.status(200).json({ received: true, duplicate: true });
+  }
+  if (seenError) {
+    console.error('[stripe] could not record event', event.id, seenError.code, seenError.message);
+    return res.status(500).json({
+      error: 'Could not record event',
+      // Surfaced in Stripe's dashboard response body, which is the only place
+      // either of us can see it without production log access.
+      detail: `${seenError.code ?? 'unknown'}: ${seenError.message}`,
+    });
   }
 
   try {
@@ -109,19 +158,24 @@ export default async function handler(req: Req, res: Res) {
 
         // metadata first, because on the very first event the customer id may
         // not yet be stored against the profile.
-        const userId =
-          sub.metadata?.user_id ??
-          (await db.rpc('user_for_stripe_customer', { p_customer_id: customerId })).data;
+        let userId: string | null = sub.metadata?.user_id ?? null;
+        if (!userId) {
+          const lookup = await db.rpc('user_for_stripe_customer', { p_customer_id: customerId });
+          if (lookup.error) throw new Error(`customer lookup failed: ${lookup.error.message}`);
+          userId = lookup.data as string | null;
+        }
 
         if (!userId) {
-          console.error('[stripe] no user for customer', customerId);
+          // Genuinely unresolvable rather than a failure. Throwing makes Stripe
+          // retry, which will not help, so this is reported and accepted.
+          console.error('[stripe] no user for customer', customerId, 'event', event.id);
           break;
         }
 
         // A deleted subscription has no meaningful status for our purposes.
         const status = event.type === 'customer.subscription.deleted' ? 'canceled' : sub.status;
 
-        await db.rpc('apply_subscription_state', {
+        const applied = await db.rpc('apply_subscription_state', {
           p_user_id: userId,
           p_customer_id: customerId,
           p_subscription_id: sub.id,
@@ -130,6 +184,9 @@ export default async function handler(req: Req, res: Res) {
             (sub as unknown as { current_period_end?: number }).current_period_end,
           ),
         });
+        // Unchecked before, which is how a subscription could go live in Stripe
+        // while the app still said Free.
+        if (applied.error) throw new Error(`apply_subscription_state: ${applied.error.message}`);
         break;
       }
 
@@ -140,10 +197,13 @@ export default async function handler(req: Req, res: Res) {
           typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
         if (!customerId) break;
 
-        const { data: userId } = await db.rpc('user_for_stripe_customer', {
-          p_customer_id: customerId,
-        });
-        if (!userId) break;
+        const lookup = await db.rpc('user_for_stripe_customer', { p_customer_id: customerId });
+        if (lookup.error) throw new Error(`customer lookup failed: ${lookup.error.message}`);
+        const userId = lookup.data as string | null;
+        if (!userId) {
+          console.error('[stripe] no user for customer', customerId, 'event', event.id);
+          break;
+        }
 
         // Deliberately re-reading the subscription rather than inferring from the
         // invoice. Stripe has already decided whether a failure means past_due
@@ -154,7 +214,7 @@ export default async function handler(req: Req, res: Res) {
         if (!id) break;
 
         const sub = await stripe.subscriptions.retrieve(id);
-        await db.rpc('apply_subscription_state', {
+        const applied = await db.rpc('apply_subscription_state', {
           p_user_id: userId,
           p_customer_id: customerId,
           p_subscription_id: sub.id,
@@ -163,6 +223,7 @@ export default async function handler(req: Req, res: Res) {
             (sub as unknown as { current_period_end?: number }).current_period_end,
           ),
         });
+        if (applied.error) throw new Error(`apply_subscription_state: ${applied.error.message}`);
         break;
       }
 
@@ -175,8 +236,9 @@ export default async function handler(req: Req, res: Res) {
     // Remove the idempotency marker so Stripe's retry can genuinely reprocess.
     // Leaving it would make a transient failure permanent.
     await db.from('stripe_events').delete().eq('id', event.id);
-    console.error('[stripe] handler failed:', (err as Error).message);
-    return res.status(500).json({ error: 'Handler failed' });
+    const message = (err as Error).message;
+    console.error('[stripe] handler failed:', message);
+    return res.status(500).json({ error: 'Handler failed', detail: message });
   }
 
   return res.status(200).json({ received: true });
