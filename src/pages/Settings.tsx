@@ -337,7 +337,7 @@ export default function Settings() {
         </div>
 
         {/* Membership */}
-        {/* TODO(Jerome): when profiles.plan === 'paid', swap the "Upgrade" link for
+        {/* M3: when profiles.plan === 'paid', swap the "Upgrade" link for
             "Manage subscription" → Stripe Customer Portal session, and show the
             plan as "Alyne Plan · renews {date}" from the subscription record. */}
         <div

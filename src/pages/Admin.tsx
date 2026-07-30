@@ -26,16 +26,11 @@ import { Alert } from '../components/Alert';
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — internal tool, gated to Salomeh only.
 //
-// TODO(Jerome): gate this route behind Salomeh's Supabase auth (role claim or
-//               is_admin flag — your call per the schema proposal RLS section).
-// TODO(Jerome): replace MOCK_* below with Supabase queries:
-//   - flagged pairs: active matches where either user's last_check_in_date
-//     is 3+ days old (the inactive-partner rule)
-//   - active pairs: matches where status = 'active'
-//   - queue: match_queue where status = 'waiting' order by enqueued_at (FIFO)
-// TODO(Jerome): wire endMatch(id) → set matches.status='ended',
-//   ended_at=now(), ended_by='admin'; both users' streaks reset on rematch
-//   per spec (reset happens at new match creation, not here).
+// Salomeh left four TODOs here and all four are done, so they are removed
+// rather than left in place. A comment claiming outstanding work is worse than
+// no comment: anyone reading this would reasonably conclude the screen is still
+// mock. The route is gated on profiles.is_admin, all three lists come from
+// admin_overview(), and ending a pair calls end_match().
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
