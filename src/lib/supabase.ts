@@ -509,3 +509,24 @@ export async function changeGoal(goal: Goal): Promise<{ ok: boolean; matchId: st
   }
   return { ok: true, matchId: (data as string | null) ?? null };
 }
+
+export type RequeueNotice = { reason: 'admin' | 'goal_change'; matchId: string };
+
+/**
+ * Why this user is back in the queue, if they should be told.
+ *
+ * Null when they caused it themselves by changing their own goal, or when they
+ * have already been matched again. See migration 0014: without the initiator
+ * check, the person who changed their goal would read their own action
+ * described as their partner's.
+ */
+export async function getRequeueNotice(): Promise<RequeueNotice | null> {
+  const { data, error } = await supabase.rpc('requeue_notice');
+  if (error) {
+    console.error('[supabase] requeue_notice failed:', error.message);
+    return null;
+  }
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row?.reason || !row?.match_id) return null;
+  return { reason: row.reason as 'admin' | 'goal_change', matchId: row.match_id };
+}

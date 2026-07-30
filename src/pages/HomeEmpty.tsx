@@ -1,5 +1,7 @@
 import { Settings, UserRound, Bell } from 'lucide-react';
 import { Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { getRequeueNotice, type RequeueNotice } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
 import { Avatar } from '../components/Avatar';
 import { AlyneWordmark } from '../components/AlyneWordmark';
@@ -11,6 +13,36 @@ export default function HomeEmpty() {
   // sees while waiting for a partner, so it is the first thing a brand new
   // signup looks at — showing them a stranger's face is a poor welcome.
   const { profile } = useAuth();
+
+  // Salomeh's one-time notice. Shown once per requeue event, then not again.
+  //
+  // "Seen" is keyed on the ENDED MATCH ID rather than a plain boolean, so a
+  // later requeue notifies afresh instead of being swallowed by a stale flag.
+  // A new match clears it without any bookkeeping, because requeue_notice()
+  // returns nothing once the user is matched again.
+  const [notice, setNotice] = useState<RequeueNotice | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getRequeueNotice().then((result) => {
+      if (!active || !result) return;
+      let alreadySeen = false;
+      try {
+        alreadySeen = localStorage.getItem('alyne:requeue-seen') === result.matchId;
+      } catch {
+        // Private browsing can refuse reads. Showing it again is a far smaller
+        // harm than never explaining the requeue at all.
+      }
+      if (alreadySeen) return;
+      setNotice(result);
+      // Marked on first render, per her spec: no dismiss button, and it reverts
+      // to the normal state on the next visit.
+      try {
+        localStorage.setItem('alyne:requeue-seen', result.matchId);
+      } catch { /* nothing useful to do */ }
+    });
+    return () => { active = false; };
+  }, []);
 
   return (
     <div className="min-h-screen flex items-start justify-center p-6 bg-background">
@@ -29,7 +61,7 @@ export default function HomeEmpty() {
 
         {/* Subtitle */}
         <p className="text-center text-[0.95rem] mb-10" style={{ color: '#8A8580' }}>
-          Your partner is on their way.
+          {notice ? "We're finding you a new partner." : 'Your partner is on their way.'}
         </p>
 
         {/* Partner card — empty state */}
@@ -90,12 +122,23 @@ export default function HomeEmpty() {
                 />
               </span>
               <p className="text-[0.85rem] uppercase tracking-widest" style={{ color: '#A8893F', fontWeight: 600, letterSpacing: '0.09em' }}>
-                Finding your match
+                {notice ? 'A New Match Is Coming' : 'Finding your match'}
               </p>
             </div>
-            <p className="text-[0.9rem]" style={{ color: '#8A8580' }}>
-              We'll notify you as soon as you're paired.
-            </p>
+            {notice ? (
+              <p
+                className="text-[0.9rem] mx-auto"
+                style={{ color: '#2B2B2B', lineHeight: 1.55, maxWidth: '280px' }}
+              >
+                {notice.reason === 'goal_change'
+                  ? "Your partner switched goals — life happens. We're already finding you someone new, and you've kept your place in line."
+                  : "Your previous pairing has ended — we're already finding you a new partner, and you've kept your place in line."}
+              </p>
+            ) : (
+              <p className="text-[0.9rem]" style={{ color: '#8A8580' }}>
+                We'll notify you as soon as you're paired.
+              </p>
+            )}
           </div>
         </div>
 

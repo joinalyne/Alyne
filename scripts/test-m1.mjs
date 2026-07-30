@@ -499,6 +499,57 @@ async function main() {
     finalProfile.display_name === 'Fresh' && finalProfile.current_goal === 'learning',
     `${finalProfile.display_name} / ${finalProfile.current_goal}`);
 
+  console.log('\n— requeue notice (Salomeh\'s UX gap) —');
+  const leaver = await makeUser('leaver', 'Leaver', 'mindfulness');
+  const left = await makeUser('left', 'Left', 'mindfulness');
+  await leaver.client.rpc('enqueue_and_match');
+  await left.client.rpc('enqueue_and_match');
+
+  // Neither should see a notice while happily matched.
+  const { data: noneYet } = await left.client.rpc('requeue_notice');
+  check('no notice while matched', (noneYet ?? []).length === 0, `${noneYet?.length} rows`);
+
+  // Leaver changes goal, which ends the pairing and requeues both.
+  await leaver.client.rpc('change_goal', { p_goal: 'quitting' });
+
+  const { data: leftNotice } = await left.client.rpc('requeue_notice');
+  check('the person LEFT BEHIND is told their partner switched goals',
+    leftNotice?.[0]?.reason === 'goal_change', JSON.stringify(leftNotice?.[0]?.reason));
+
+  // The important one, which her design did not specify: the person who acted
+  // must not read their own decision described as their partner's.
+  const { data: leaverNotice } = await leaver.client.rpc('requeue_notice');
+  check('the person who CHANGED their own goal gets no notice',
+    (leaverNotice ?? []).length === 0 || leaverNotice[0]?.reason === null,
+    JSON.stringify(leaverNotice?.[0] ?? 'none'));
+
+  // An admin ending a pair gets different copy, and both sides see it.
+  //
+  // Queue cleared first: earlier sections leave waiting users on some goals, so
+  // without this these two pair with leftovers instead of each other and the
+  // assertion fails for reasons unrelated to the notice.
+  await admin.from('match_queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  const admin1 = await makeUser('adm1', 'Adm1', 'other');
+  const admin2 = await makeUser('adm2', 'Adm2', 'other');
+  await admin1.client.rpc('enqueue_and_match');
+  const { data: pairId2 } = await admin2.client.rpc('enqueue_and_match');
+  await admin.from('matches')
+    .update({ status: 'ended', ended_at: new Date().toISOString(), ended_by: 'admin' })
+    .eq('id', pairId2);
+
+  const { data: adminNotice } = await admin1.client.rpc('requeue_notice');
+  check('an admin-ended pairing gets the admin wording',
+    adminNotice?.[0]?.reason === 'admin', JSON.stringify(adminNotice?.[0]?.reason));
+
+  // Being matched again clears it, with no extra bookkeeping.
+  await admin.from('match_queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await admin1.client.rpc('enqueue_and_match');
+  const partner3 = await makeUser('adm3', 'Adm3', 'other');
+  await partner3.client.rpc('enqueue_and_match');
+  const { data: clearedNotice } = await admin1.client.rpc('requeue_notice');
+  check('a new match clears the notice', (clearedNotice ?? []).length === 0,
+    `${clearedNotice?.length} rows`);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);
