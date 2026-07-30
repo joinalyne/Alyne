@@ -6,20 +6,37 @@ export const MAX_RECORDING_MS = 120_000;
 export type RecorderState = 'idle' | 'requesting' | 'recording' | 'recorded' | 'denied' | 'unsupported';
 
 /**
- * Candidate container formats, in preference order.
+ * Candidate container formats, in preference order. MP4 FIRST, deliberately.
  *
- * Chrome and Firefox produce webm/opus; Safari cannot, and produces mp4/aac
- * instead. Hardcoding webm would make voice notes silently fail on iPhone,
- * which is the platform this app is mostly used on, so the format is negotiated
- * rather than assumed.
+ * The original order preferred webm because that is what Chrome and Firefox
+ * record natively. That was solving the wrong half of the problem. Salomeh and
+ * Kane recorded voice notes that saved correctly and then could not play each
+ * other's: Safari cannot decode WebM audio at all, so a note recorded in Chrome
+ * is silent on an iPhone. In a two-person app the format has to be one the
+ * OTHER person can play, not merely one this browser can record.
+ *
+ * MP4/AAC plays everywhere. Chrome and Safari can both record it, so preferring
+ * it means most pairs exchange something universally playable. WebM stays as a
+ * fallback for browsers that cannot record MP4, which is better than refusing
+ * to record at all, but it is a fallback rather than the default.
  */
 const CANDIDATE_TYPES = [
+  'audio/mp4',
+  'audio/mp4;codecs=mp4a.40.2',
+  'audio/aac',
   'audio/webm;codecs=opus',
   'audio/webm',
-  'audio/mp4',
-  'audio/aac',
   'audio/ogg;codecs=opus',
 ];
+
+/** True when the browser can PLAY this, which is a different question from
+ *  whether it can record it. Used to warn rather than fail silently. */
+export function canPlayType(mimeType: string): boolean {
+  if (typeof document === 'undefined') return true;
+  const audio = document.createElement('audio');
+  // canPlayType returns '', 'maybe' or 'probably'. Empty means definitely not.
+  return audio.canPlayType(mimeType.split(';')[0]) !== '';
+}
 
 function pickMimeType(): string | null {
   if (typeof MediaRecorder === 'undefined') return null;

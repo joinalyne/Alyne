@@ -2,10 +2,21 @@ import { useEffect, useState } from 'react';
 import { Mic, Camera, PenLine } from 'lucide-react';
 import { signedCheckInUrl, type PartnerSnapshot } from '../lib/supabase';
 import { relativeTime } from '../lib/dates';
+import { canPlayType } from '../hooks/useVoiceRecorder';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
 type CheckIn = NonNullable<PartnerSnapshot['partnerLatestCheckIn']>;
+
+/** The stored path carries the container in its extension, which is all the
+ *  browser needs to say whether it could decode it. */
+function guessAudioType(path: string | null): string {
+  if (!path) return 'audio/mp4';
+  if (path.endsWith('.webm')) return 'audio/webm';
+  if (path.endsWith('.ogg')) return 'audio/ogg';
+  if (path.endsWith('.aac')) return 'audio/aac';
+  return 'audio/mp4';
+}
 
 /**
  * The partner's most recent check-in, in full.
@@ -40,6 +51,12 @@ export function PartnerCheckIn({
     return () => { active = false; };
   }, [checkIn.mediaUrl]);
 
+  // Whether THIS browser can decode it, which is a different question from
+  // whether the sender could record it.
+  const playable =
+    checkIn.type !== 'voice' ||
+    canPlayType(guessAudioType(checkIn.mediaUrl));
+
   const Icon = checkIn.type === 'voice' ? Mic : checkIn.type === 'photo' ? Camera : PenLine;
   const label =
     checkIn.type === 'voice' ? 'Voice note'
@@ -73,7 +90,18 @@ export function PartnerCheckIn({
       ) : null}
 
       {checkIn.type === 'voice' && mediaUrl ? (
-        <audio controls src={mediaUrl} className="w-full mb-3" />
+        playable ? (
+          <audio controls src={mediaUrl} className="w-full mb-3" />
+        ) : (
+          /* Say so rather than render a player that produces silence. Salomeh
+             and Kane hit exactly this: a WebM note recorded in Chrome cannot be
+             decoded by Safari, so the controls appeared and nothing happened.
+             Older notes may still be in a format this browser cannot play. */
+          <p className="text-[0.85rem] mb-3" style={{ color: 'var(--destructive)' }}>
+            This voice note was recorded in a format this browser cannot play.
+            Try opening Alyne in Chrome, or ask them to record a new one.
+          </p>
+        )
       ) : null}
 
       {/* Say so rather than showing an empty card. A partner who recorded

@@ -35,3 +35,4 @@ dist-ssr
 # Rotated VAPID keypair, never commit
 .vapid-new.json
 VAPID-PRIVATE-KEY-FOR-SALOMEH.txt
+.env.vercel

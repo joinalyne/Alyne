@@ -177,6 +177,17 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
+
+    /* iOS Safari paints its own gradient and inner shadow on buttons, which
+       showed as a darker band across the top of the disabled "Checked In Today"
+       state. It only appears on a real iPhone, so it survived every desktop
+       check. Resetting the appearance and clearing the background image is the
+       fix; background-color set elsewhere is untouched. */
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: none;
+    /* Safari also rounds and shadows tap highlights by default. */
+    -webkit-tap-highlight-color: transparent;
   }
 
   input {
