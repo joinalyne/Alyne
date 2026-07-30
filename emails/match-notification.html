@@ -7,7 +7,16 @@
          {{name}} recipient · {{partner_name}} · {{goal_label}}
            ({{goal_label}} = DISPLAY label e.g. "Writing", not enum "writing")
          {{avatar_url}} / {{partner_avatar_url}} — real photo, or default:
-           https://app.joinalyne.com/email/avatar-glyph.png
+           INITIALS fallback — see below.
+       When the user has a photo: render the <img> as-is with {{avatar_url}}.
+       When they don't: replace the <img> with an initials circle:
+         <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto; border-collapse:separate;"><tr>
+           <td align="center" valign="middle" width="80" height="80"
+               style="width:80px; height:80px; border-radius:50%; background-color:#F5F3F0;">
+             <span style="font-family:'Lora',Georgia,serif; font-size:36px; font-weight:700; color:COLOR;">{{initial}}</span>
+           </td></tr></table>
+         COLOR = #104241 for the recipient side, #A8893F for the partner side.
+         (Nudge only: partner cell also gets opacity:0.45 when dimmed.)
            (asset accompanies this template → public/email/avatar-glyph.png;
             gold ring is a CSS border, so photos get it too)
          {{unsubscribe_url}} — point at Settings until prefs exist
@@ -16,7 +25,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="x-apple-disable-message-reformatting">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
   <title>You've been matched</title>
 </head>
 <body style="margin:0; padding:0; background-color:#E8E4DE;">
@@ -68,23 +77,18 @@
                       <tr>
                         <td align="center" valign="middle" width="80">
                           <img src="{{avatar_url}}" width="80" height="80" alt="You"
-                               style="display:block; width:80px; height:80px; border-radius:50%; border:2px solid #A8893F; object-fit:cover;">
+                               style="display:block; width:80px; height:80px; border-radius:50%; object-fit:cover;">
                         </td>
                         <td align="center" valign="middle" style="padding:0 22px;">
                           <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                             <tr>
-                              <td valign="middle" width="26" style="width:26px; font-size:0; line-height:0; border-top:1px solid #D3C39E;">&nbsp;</td>
-                              <td valign="middle" width="16" align="center" style="width:16px; font-size:0; line-height:0; padding:0 5px;">
-                                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="6" height="6" alt=""
-                                     style="display:block; width:6px; height:6px; border-radius:3px; background-color:#DCCFAF;">
-                              </td>
-                              <td valign="middle" width="26" style="width:26px; font-size:0; line-height:0; border-top:1px solid #D3C39E;">&nbsp;</td>
+                              <td valign="middle" width="26" height="6" style="width:26px; height:6px; font-size:0; line-height:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="1" style="height:1px; background-color:#D3C39E; font-size:0; line-height:0;"></td></tr></table></td><td valign="middle" width="6" align="center" style="width:6px; font-size:0; line-height:0; padding:0 3px;"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="6" height="6" alt="" style="display:block; width:6px; height:6px; border-radius:3px; background-color:#A8893F;"></td><td valign="middle" width="6" align="center" style="width:6px; font-size:0; line-height:0; padding:0 3px;"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="6" height="6" alt="" style="display:block; width:6px; height:6px; border-radius:3px; background-color:#A8893F;"></td><td valign="middle" width="6" align="center" style="width:6px; font-size:0; line-height:0; padding:0 3px;"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="6" height="6" alt="" style="display:block; width:6px; height:6px; border-radius:3px; background-color:#A8893F;"></td><td valign="middle" width="26" height="6" style="width:26px; height:6px; font-size:0; line-height:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="1" style="height:1px; background-color:#D3C39E; font-size:0; line-height:0;"></td></tr></table></td>
                             </tr>
                           </table>
                         </td>
                         <td align="center" valign="middle" width="80">
                           <img src="{{partner_avatar_url}}" width="80" height="80" alt="{{partner_name}}"
-                               style="display:block; width:80px; height:80px; border-radius:50%; border:2px solid #A8893F; object-fit:cover;">
+                               style="display:block; width:80px; height:80px; border-radius:50%; object-fit:cover;">
                         </td>
                       </tr>
                       <tr>

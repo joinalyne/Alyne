@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { supabase, ensureProfile } from '../lib/supabase';
 import { Alert } from '../components/Alert';
+import { PasswordField } from '../components/PasswordField';
 
 const inputStyle = {
   borderColor: 'rgba(43, 43, 43, 0.1)',
@@ -122,17 +123,12 @@ export default function Auth() {
             />
           </div>
 
-          {/* Password Input */}
+          {/* Password Input, with a reveal toggle */}
           <div>
-            <input
-              type="password"
+            <PasswordField
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              required
+              onChange={setPassword}
               autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              className="w-full px-6 py-4 rounded-[1.25rem] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
-              style={inputStyle}
             />
           </div>
 

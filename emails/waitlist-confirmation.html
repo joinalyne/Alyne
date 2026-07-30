@@ -1,154 +1,81 @@
 <!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
+  <!-- ══════════════════════════════════════════════════════════════════
+       ALYNE — Queue/waitlist confirmation (v2, matches the v5 system)
+       Sent via Resend when a user enters the match queue.
+       Variables: {{name}} · {{goal_label}} (DISPLAY label, e.g. "Writing")
+       Silhouette images are fixed illustration here (not per-user avatars) —
+       both PNGs ship with the match/nudge templates → public/email/.
+       {{unsubscribe_url}} — Settings until notification prefs exist.
+       ══════════════════════════════════════════════════════════════════ -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="x-apple-disable-message-reformatting">
-  <title>You're in line for a partner</title>
-  <!-- ══════════════════════════════════════════════════════════════════
-       ALYNE — Waitlist / queue confirmation
-       Sent via Resend when a user enters the match queue.
-       Variables for Jerome to interpolate before sending:
-         {{name}}        — user's display name
-         {{goal}}        — the goal they queued for (e.g. "Fitness")
-         {{avatar_url}}  — user's profile photo; default to
-                           {{asset_base}}/default-avatar.png when unset
-       Logo URL assumes production deploy: {{asset_base}}/alyne-logo.png
-       (file lives in the repo at public/email/alyne-logo.png)
-       ══════════════════════════════════════════════════════════════════ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Finding your person</title>
 </head>
-<body style="margin:0; padding:0; background-color:#f4f4f4;">
-  <!-- Preheader (hidden preview text) -->
-  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
-    You're in the queue — we'll email you the moment you're matched.
-  </div>
-
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
+<body style="margin:0; padding:0; background-color:#E8E4DE;">
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">You're in line — we'll email you the moment we find your match.</div>
+  <table role="presentation" align="center" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#E8E4DE;">
     <tr>
-      <td align="center" style="padding:40px 16px;">
+      <td align="center" style="padding:48px 24px;">
+        <table role="presentation" align="center" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px; max-width:100%; margin:0 auto;">
 
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:100%;">
-
-          <!-- Logo -->
           <tr>
-            <td align="center" style="padding:0 0 28px 0;">
-              <img src="{{asset_base}}/alyne-logo.png" width="120" alt="alyne"
-                   style="display:block; width:120px; height:auto; border:0;">
+            <td align="center" style="padding:0 0 32px 0;">
+              <img src="https://app.joinalyne.com/email/alyne-logo.png" width="104" alt="alyne" style="display:block; margin:0 auto; width:104px; height:auto; border:0;">
             </td>
           </tr>
 
-          <!-- Card -->
           <tr>
-            <td style="background-color:#FFFFFF; border-radius:20px; padding:40px 36px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            <td align="center" style="background-color:#FFFFFF; border-radius:20px; padding:48px 48px 40px;">
+              <table role="presentation" align="center" width="100%" cellpadding="0" cellspacing="0" border="0">
 
-                <!-- Gold status line -->
                 <tr>
-                  <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:#A8893F; padding-bottom:14px;">
-                    &#9679;&nbsp;&nbsp;Finding your match
+                  <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:11.5px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#A8893F; padding-bottom:20px;">
+                    &#9679;&nbsp;&nbsp;You're In Line
                   </td>
                 </tr>
 
-                <!-- Headline -->
                 <tr>
-                  <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:23px; font-weight:600; color:#2B2B2B; padding-bottom:12px;">
-                    Your partner is on their way, {{name}}.
+                  <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:30px; font-weight:700; letter-spacing:-0.01em; line-height:1.2; color:#A8893F; padding-bottom:20px;">
+                    Finding your person.
                   </td>
                 </tr>
 
-                <!-- Body -->
                 <tr>
-                  <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:15px; line-height:1.6; color:#8A8580; padding-bottom:28px;">
-                    You showed up — that's the hard part. Now we're finding you an accountability
-                    partner who's chasing the same goal: <span style="color:#2B2B2B; font-weight:600;">{{goal}}</span>.
-                  </td>
-                </tr>
-
-
-                <!-- You ↔ Partner connection motif -->
-                <tr>
-                  <td align="center" style="padding-bottom:28px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <td align="center" style="padding-bottom:36px;">
+                    <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="max-width:390px; margin:0 auto;">
                       <tr>
-                        <!-- You -->
-                        <td align="center" valign="middle">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                            <tr>
-                              <td align="center">
-                                <!-- {{avatar_url}}: user photo; Jerome defaults to
-                                     {{asset_base}}/default-avatar.png when unset -->
-                                <img src="{{avatar_url}}" width="64" height="64" alt="You"
-                                     style="display:block; width:64px; height:64px; border-radius:50%; border:1px solid #104241; object-fit:cover;">
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                        <!-- gold connector -->
-                        <td width="56" valign="middle" style="padding:0 6px;">
-                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                            <tr><td height="1" style="height:1px; background-color:#A8893F; font-size:0; line-height:0;">&nbsp;</td></tr>
-                          </table>
-                        </td>
-                        <!-- Partner (mystery slot) -->
-                        <td align="center" valign="middle">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                            <tr>
-                              <td align="center" width="64" height="64"
-                                  style="width:64px; height:64px; background-color:#F5F3F0; border:1px dashed #A8893F; border-radius:50%; font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:20px; font-weight:600; color:#A8893F;">
-                                ?
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; color:#2B2B2B; font-weight:500; padding-top:10px;">You</td>
-                        <td></td>
-                        <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; color:#8A8580; padding-top:10px;">Your partner</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <!-- Divider -->
-                <tr>
-                  <td style="border-top:1px solid rgba(43,43,43,0.06); padding-bottom:24px; font-size:0; line-height:0;">&nbsp;</td>
-                </tr>
-
-                <!-- What happens next -->
-                <tr>
-                  <td style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:#8A8580; padding-bottom:16px;">
-                    What happens next
-                  </td>
-                </tr>
-
-                <tr>
-                  <td style="padding-bottom:14px;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td width="28" valign="top">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                            <tr><td align="center" width="28" height="28" style="background-color:#F5F3F0; border-radius:50%; font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; font-weight:700; color:#A8893F;">1</td></tr>
-                          </table>
-                        </td>
-                        <td style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:1.5; color:#2B2B2B; padding-left:14px;">
-                          We'll match you with someone working toward the same goal.
+                        <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:1.65; color:#2B2B2B;">
+                          You're in the queue for <strong>{{goal_label}}</strong>, {{name}}. We're looking for someone with the same goal, and we'll email you the moment we find your match &mdash; usually within 24 hours.
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
 
+                <!-- Motif: silhouettes + centered three-dot connector -->
                 <tr>
-                  <td style="padding-bottom:14px;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <td align="center" style="padding-bottom:36px;">
+                    <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
-                        <td width="28" valign="top">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                            <tr><td align="center" width="28" height="28" style="background-color:#F5F3F0; border-radius:50%; font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; font-weight:700; color:#A8893F;">2</td></tr>
+                        <td align="center" valign="middle">
+                          <img src="https://app.joinalyne.com/email/avatar-silhouette-a.png" width="80" height="80" alt=""
+                               style="display:block; width:80px; height:80px; border-radius:50%; object-fit:cover;">
+                        </td>
+                        <td valign="middle" style="padding:0 22px;">
+                          <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                            <tr>
+                              <td valign="middle" width="26" height="6" style="width:26px; height:6px; font-size:0; line-height:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="1" style="height:1px; background-color:#D3C39E; font-size:0; line-height:0;"></td></tr></table></td><td valign="middle" width="6" align="center" style="width:6px; font-size:0; line-height:0; padding:0 3px;"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="6" height="6" alt="" style="display:block; width:6px; height:6px; border-radius:3px; background-color:#A8893F;"></td><td valign="middle" width="6" align="center" style="width:6px; font-size:0; line-height:0; padding:0 3px;"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="6" height="6" alt="" style="display:block; width:6px; height:6px; border-radius:3px; background-color:#A8893F;"></td><td valign="middle" width="6" align="center" style="width:6px; font-size:0; line-height:0; padding:0 3px;"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="6" height="6" alt="" style="display:block; width:6px; height:6px; border-radius:3px; background-color:#A8893F;"></td><td valign="middle" width="26" height="6" style="width:26px; height:6px; font-size:0; line-height:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="1" style="height:1px; background-color:#D3C39E; font-size:0; line-height:0;"></td></tr></table></td>
+                            </tr>
                           </table>
                         </td>
-                        <td style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:1.5; color:#2B2B2B; padding-left:14px;">
-                          You'll get an email the moment your partner is ready.
+                        <td align="center" valign="middle">
+                          <img src="https://app.joinalyne.com/email/avatar-silhouette-b.png" width="80" height="80" alt=""
+                               style="display:block; width:80px; height:80px; border-radius:50%; object-fit:cover;">
                         </td>
                       </tr>
                     </table>
@@ -158,33 +85,14 @@
                 <tr>
                   <td style="padding-bottom:28px;">
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td width="28" valign="top">
-                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                            <tr><td align="center" width="28" height="28" style="background-color:#F5F3F0; border-radius:50%; font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; font-weight:700; color:#A8893F;">3</td></tr>
-                          </table>
-                        </td>
-                        <td style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:1.5; color:#2B2B2B; padding-left:14px;">
-                          Check in daily — your partner is counting on you.
-                        </td>
-                      </tr>
+                      <tr><td height="1" style="height:1px; background-color:#EDEBE8; font-size:0; line-height:0;">&nbsp;</td></tr>
                     </table>
                   </td>
                 </tr>
 
-                <!-- CTA -->
                 <tr>
-                  <td align="center" style="padding-bottom:8px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-                      <tr>
-                        <td align="center" style="background-color:#104241; border-radius:20px;">
-                          <a href="{{app_url}}" target="_blank"
-                             style="display:block; font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; font-weight:700; color:#FFFFFF; text-decoration:none; padding:17px 24px;">
-                            Open Alyne
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
+                  <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:15px; line-height:1.6; font-style:italic; color:#A8893F;">
+                    Good things take a moment.
                   </td>
                 </tr>
 
@@ -192,17 +100,14 @@
             </td>
           </tr>
 
-          <!-- Footer -->
           <tr>
-            <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:1.6; color:#8A8580; padding:28px 24px 0 24px;">
-              You're receiving this because you joined the partner queue on
-              <a href="https://joinalyne.com" style="color:#A8893F; text-decoration:none;">joinalyne.com</a>.<br>
-              Alyne &nbsp;&middot;&nbsp; Accountability, together.
+            <td align="center" style="font-family:'Inter',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12.5px; line-height:1.7; color:#9E9A94; padding:24px 24px 0 24px;">
+              You received this because you signed up for Alyne.<br>
+              <a href="{{unsubscribe_url}}" style="color:#9E9A94; text-decoration:underline;">Unsubscribe</a>
             </td>
           </tr>
 
         </table>
-
       </td>
     </tr>
   </table>

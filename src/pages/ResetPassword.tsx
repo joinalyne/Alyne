@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Mail, KeyRound } from 'lucide-react';
 import { AlyneWordmark } from '../components/AlyneWordmark';
 import { requestPasswordReset, updatePassword } from '../lib/supabase';
+import { PasswordField } from '../components/PasswordField';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Reset password — two halves of one flow:
@@ -128,15 +129,11 @@ export default function ResetPassword() {
         {/* 3 — arrived from the email: set a new password */}
         {stage === 'recovery' && (
           <form onSubmit={saveNewPassword} className="space-y-4">
-            <input
-              type="password"
+            <PasswordField
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={setNewPassword}
               placeholder="New password"
-              required
-              minLength={8}
-              className="w-full px-6 py-4 rounded-[1.25rem] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
-              style={inputStyle}
+              autoComplete="new-password"
             />
             <p className="text-[0.85rem] px-2" style={{ color: '#8A8580' }}>
               At least 8 characters.

@@ -8,21 +8,32 @@ import { AlyneWordmark } from '../components/AlyneWordmark';
 import { enqueueAndMatch } from '../lib/supabase';
 import { Alert } from '../components/Alert';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Salomeh's v2 visual layer (30 July) over the existing logic.
+//
+// Her file was presentation only and said so: "keep whatever routing/data hooks
+// the current screen has". Dropping it in wholesale would have removed the
+// polling that actually creates matches, and the back control that stops someone
+// being stranded here, so the two are merged rather than replaced.
+//
+// Her file imports the wordmark as a default export; this repo exports it named,
+// so that is corrected rather than copied.
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** How often to re-check while waiting for someone to join the queue. */
 const POLL_MS = 5000;
 
 /**
- * The animation is the point of this screen, and a match can land instantly
- * when someone is already waiting. Hold briefly so it plays rather than
- * flashing past — "Good things take a moment", as the copy says.
+ * The animation is the point of this screen, and a match can land instantly when
+ * someone is already waiting. Hold briefly so it plays rather than flashing past.
  */
 const MINIMUM_DWELL_MS = 2600;
 
 export default function FindingPartner() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  // Stamped inside the effect, not at render: Date.now() during render is
-  // impure and makes the component non-deterministic across re-renders.
+  // Stamped inside the effect, not at render: calling a clock during render is
+  // impure and makes the component non-deterministic.
   const startedAt = useRef(0);
 
   useEffect(() => {
@@ -32,18 +43,18 @@ export default function FindingPartner() {
 
     async function attempt() {
       try {
-        // Idempotent: joins the queue on the first call, and on later calls
-        // picks up a match the *other* side created. That is what makes plain
-        // polling sufficient here without realtime subscriptions.
+        // Idempotent: joins the queue on the first call, and on later calls picks
+        // up a match the OTHER side created. That is what makes plain polling
+        // sufficient without realtime subscriptions.
         const matchId = await enqueueAndMatch();
         if (!active) return;
 
         if (matchId) {
           const elapsed = Date.now() - startedAt.current;
-          const wait = Math.max(0, MINIMUM_DWELL_MS - elapsed);
-          timer = setTimeout(() => {
-            if (active) navigate('/matched', { replace: true });
-          }, wait);
+          timer = setTimeout(
+            () => { if (active) navigate('/matched', { replace: true }); },
+            Math.max(0, MINIMUM_DWELL_MS - elapsed),
+          );
           return;
         }
 
@@ -68,13 +79,9 @@ export default function FindingPartner() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      {/* A way out. This screen had no navigation at all: someone waiting for a
-          partner could only leave via browser back, and on the installed PWA
-          there is no browser chrome to do that with, so they were genuinely
-          stuck watching an animation.
-
-          Leaving does NOT cancel the search, which is deliberate. They stay in
-          the queue and get an email, exactly as the copy below promises. */}
+      {/* A way out. This screen had no navigation at all, and on the installed
+          PWA there is no browser chrome either, so someone waiting was stuck.
+          Leaving does NOT cancel the search, exactly as the copy below promises. */}
       <button
         type="button"
         onClick={() => navigate('/home')}
@@ -93,31 +100,23 @@ export default function FindingPartner() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <AlyneWordmark className="w-24" />
+          <AlyneWordmark className="w-28" />
         </motion.div>
 
         {/* Animated Illustration */}
         <div className="flex items-center justify-center py-8">
           <div className="relative w-[280px] h-[140px]">
+
             {/* Left Profile Silhouette */}
             <motion.div
               className="absolute left-0 top-1/2 -translate-y-1/2"
               style={{ width: '70px', height: '77px' }}
               initial={{ opacity: 0, x: -20 }}
-              animate={{
-                opacity: 1,
-                x: 0,
-                y: [0, -5, 0]
-              }}
+              animate={{ opacity: 1, x: 0, y: [0, -5, 0] }}
               transition={{
-                opacity: { duration: 0.8, ease: "easeOut" },
-                x: { duration: 0.8, ease: "easeOut" },
-                y: {
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 1
-                }
+                opacity: { duration: 0.8, ease: 'easeOut' },
+                x: { duration: 0.8, ease: 'easeOut' },
+                y: { duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 1 },
               }}
             >
               <img src={Asset1} alt="" className="w-full h-full" />
@@ -128,26 +127,17 @@ export default function FindingPartner() {
               className="absolute right-0 top-1/2 -translate-y-1/2"
               style={{ width: '70px', height: '77px' }}
               initial={{ opacity: 0, x: 20 }}
-              animate={{
-                opacity: 1,
-                x: 0,
-                y: [0, -5, 0]
-              }}
+              animate={{ opacity: 1, x: 0, y: [0, -5, 0] }}
               transition={{
-                opacity: { duration: 0.8, ease: "easeOut", delay: 0.2 },
-                x: { duration: 0.8, ease: "easeOut", delay: 0.2 },
-                y: {
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 1.3
-                }
+                opacity: { duration: 0.8, ease: 'easeOut', delay: 0.2 },
+                x: { duration: 0.8, ease: 'easeOut', delay: 0.2 },
+                y: { duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 1.3 },
               }}
             >
               <img src={Asset2} alt="" className="w-full h-full" />
             </motion.div>
 
-            {/* Connecting Line with Animation */}
+            {/* Connecting Line */}
             <svg
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
               width="120"
@@ -155,113 +145,69 @@ export default function FindingPartner() {
               viewBox="0 0 120 2"
             >
               <motion.line
-                x1="0"
-                y1="1"
-                x2="120"
-                y2="1"
-                stroke="#a8893f"
-                strokeWidth="1"
-                strokeLinecap="round"
+                x1="0" y1="1" x2="120" y2="1"
+                stroke="#a8893f" strokeWidth="1" strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 0 }}
-                animate={{
-                  pathLength: 1,
-                  opacity: [1, 0.4, 1]
-                }}
-                transition={{
-                  pathLength: { duration: 1.2, ease: "easeOut", delay: 0.6 },
-                  opacity: {
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                    delay: 1.5
-                  }
-                }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ duration: 1.2, ease: 'easeOut', delay: 0.6 }}
               />
             </svg>
 
-            {/* Pulsing Dots */}
-            <motion.div
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.8 }}
-            >
-              <div className="flex gap-1.5">
-                <motion.div
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: '#a8893f' }}
-                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                />
-                <motion.div
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: '#a8893f' }}
-                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-                />
-                <motion.div
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: '#a8893f' }}
-                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-                />
-              </div>
-            </motion.div>
+            {/* Travelling dots along the line */}
+            {[0, 1, 2].map((i) => (
+              <motion.span
+                key={i}
+                className="absolute top-1/2 left-1/2 rounded-full"
+                style={{
+                  width: 6, height: 6, background: '#A8893F',
+                  translateY: '-50%', marginLeft: -60,
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ x: [0, 120], opacity: [0, 1, 1, 0] }}
+                transition={{
+                  duration: 2.4, repeat: Infinity, ease: 'easeInOut',
+                  delay: 1.6 + i * 0.35,
+                }}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Text Content */}
-        <div className="space-y-4 px-4">
-          <motion.h1
-            className="text-[2rem] tracking-tight leading-tight"
-            style={{ color: '#2b2b2b', fontWeight: 600 }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-          >
-            Finding your person<motion.span
-              style={{ color: '#a8893f' }}
-              animate={{ opacity: [1, 0.5, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-            >.</motion.span>
-          </motion.h1>
-
+        {/* Headline */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.8 }}
+          className="space-y-4"
+        >
+          <h1 className="text-[2rem] tracking-tight" style={{ color: '#2B2B2B', fontWeight: 600 }}>
+            Finding your person<span style={{ color: '#A8893F' }}>.</span>
+          </h1>
           {error ? (
             <Alert>{error}</Alert>
           ) : (
-            <>
-              <motion.p
-                className="text-[1rem] leading-relaxed px-2"
-                style={{ color: '#8A8580' }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 1 }}
-              >
-                We're looking for someone with the same goal. We'll notify you the moment we find a match — usually within 24 hours.
-              </motion.p>
-
-              <motion.p
-                className="text-[0.9rem] italic pt-2"
-                style={{ color: '#a8893f' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.7 }}
-                transition={{ duration: 0.6, delay: 1.2 }}
-              >
-                Good things take a moment.
-              </motion.p>
-
-              <motion.p
-                className="text-[1rem] leading-relaxed px-2"
-                style={{ color: '#8A8580' }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 1.4 }}
-              >
-                We'll email you the moment we find your match.
-              </motion.p>
-            </>
+            <p
+              className="text-[1.05rem] leading-relaxed mx-auto"
+              style={{ color: '#2B2B2B', maxWidth: '380px' }}
+            >
+              We&rsquo;re looking for someone with the same goal. We&rsquo;ll notify you the
+              moment we find a match &mdash; usually within 24 hours.
+            </p>
           )}
-        </div>
+        </motion.div>
+
+        {/* Reassurance */}
+        {error ? null : (
+          <motion.p
+            className="text-[1rem] italic"
+            style={{ color: '#A8893F' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 1.4 }}
+          >
+            Good things take a moment.
+          </motion.p>
+        )}
 
       </div>
     </div>

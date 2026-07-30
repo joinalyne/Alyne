@@ -25,9 +25,17 @@ export function render(template: string, vars: EmailVars): RenderResult {
     template,
   );
 
+  // Comments are stripped before scanning for leftovers. Salomeh documents the
+  // expected variables in an HTML comment at the top of each template, so
+  // scanning the raw document reported every documented name as "missing" even
+  // when the markup used none of them.
+  const withoutComments = html.replace(/<!--[\s\S]*?-->/g, '');
+
   // Supabase's own variables ({{ .ConfirmationURL }}) are substituted by
   // Supabase, not here, and are identified by the leading dot.
-  const missing = [...new Set(html.match(/\{\{\s*[^}\s.][^}]*\}\}/g) ?? [])].map((m) => m.trim());
+  const missing = [
+    ...new Set(withoutComments.match(/\{\{\s*[^}\s.][^}]*\}\}/g) ?? []),
+  ].map((m) => m.trim());
 
   return { html, missing };
 }
@@ -48,6 +56,44 @@ export const GOAL_LABELS: Record<string, string> = {
   mindfulness: 'Mindfulness',
   other: 'Other',
 };
+
+/**
+ * Swap an avatar <img> for an initials circle when there is no photo.
+ *
+ * v5 replaced the glyph fallback with initials, and email cannot do conditionals,
+ * so the sender has to make the choice. Targeted by PLACEHOLDER NAME rather than
+ * by matching her styling, so restyling the image does not silently break this.
+ *
+ * Markup and colours are hers, from the instruction block in the template:
+ * #104241 for the recipient, #A8893F for the partner.
+ */
+export function applyAvatar(
+  html: string,
+  placeholder: 'avatar_url' | 'partner_avatar_url',
+  photoUrl: string | null,
+  initial: string,
+  colour: string,
+): string {
+  if (photoUrl) return html; // leave the <img> as-is, per her note
+
+  const imgTag = new RegExp(`<img[^>]*src="\{\{${placeholder}\}\}"[^>]*>`);
+  const initialsCircle =
+    '<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0"' +
+    ' style="margin:0 auto; border-collapse:separate;"><tr>' +
+    '<td align="center" valign="middle" width="80" height="80"' +
+    ' style="width:80px; height:80px; border-radius:50%; background-color:#F5F3F0;">' +
+    `<span style="font-family:'Lora',Georgia,serif; font-size:36px; font-weight:700;` +
+    ` color:${colour};">${initial}</span>` +
+    '</td></tr></table>';
+
+  return html.replace(imgTag, initialsCircle);
+}
+
+/** First letter, uppercased, or a neutral mark when there is no name at all. */
+export function initialFor(name: string | null): string {
+  const letter = name?.trim()?.[0];
+  return letter ? letter.toUpperCase() : '?';
+}
 
 /**
  * The variables the v5 match-notification template expects, for one recipient.

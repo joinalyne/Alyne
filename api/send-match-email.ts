@@ -21,7 +21,7 @@ import { createClient } from '@supabase/supabase-js';
 // runtime even though TypeScript accepts one. Without it the whole function
 // fails to import and every request returns FUNCTION_INVOCATION_FAILED, before
 // the handler runs — which looks like a broken endpoint rather than a bad import.
-import { render, matchNotificationVars } from './_email.js';
+import { render, matchNotificationVars, applyAvatar, initialFor } from './_email.js';
 
 type Req = { method?: string; body?: unknown; headers: Record<string, string | string[] | undefined> };
 type Res = {
@@ -110,20 +110,36 @@ export default async function handler(req: Req, res: Res) {
   const html = template();
 
   const recipients = [
-    { to: claim.user_a_email, name: claim.user_a_name, partner: claim.user_b_name },
-    { to: claim.user_b_email, name: claim.user_b_name, partner: claim.user_a_name },
+    {
+      to: claim.user_a_email, name: claim.user_a_name, partner: claim.user_b_name,
+      avatar: claim.user_a_avatar ?? null, partnerAvatar: claim.user_b_avatar ?? null,
+    },
+    {
+      to: claim.user_b_email, name: claim.user_b_name, partner: claim.user_a_name,
+      avatar: claim.user_b_avatar ?? null, partnerAvatar: claim.user_a_avatar ?? null,
+    },
   ].filter((r) => !!r.to);
 
   try {
     const results = await Promise.all(
       recipients.map(async (r) => {
+        // v5 wants initials rather than a glyph when someone has no photo, and
+        // email cannot branch, so the markup is chosen here before substitution.
+        // Her colours: brand green for the recipient, gold for the partner.
+        let template = applyAvatar(html, 'avatar_url', r.avatar, initialFor(r.name), '#104241');
+        template = applyAvatar(
+          template, 'partner_avatar_url', r.partnerAvatar, initialFor(r.partner), '#A8893F',
+        );
+
         const { html: body, missing } = render(
-          html,
+          template,
           matchNotificationVars({
             appUrl,
             recipientName: r.name,
             partnerName: r.partner,
             goal: claim.goal,
+            recipientAvatarUrl: r.avatar,
+            partnerAvatarUrl: r.partnerAvatar,
           }),
         );
 
