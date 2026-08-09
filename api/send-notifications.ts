@@ -21,7 +21,11 @@ import {
   partnerCheckedIn, streakReminder, matched, partnerReturned,
   type PushPayload, type NotificationKind,
 } from './_notifications.js';
-import { GOAL_LABELS } from './_email.js';
+import {
+  GOAL_LABELS, render, inactiveNudgeVars, applyAvatar, initialFor,
+} from './_email.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 type Req = { method?: string; headers: Record<string, string | string[] | undefined> };
 type Res = { status: (code: number) => Res; json: (body: unknown) => void };
@@ -29,6 +33,18 @@ type Res = { status: (code: number) => Res; json: (body: unknown) => void };
 /** How far back to look. Comfortably wider than the schedule, since the log
  *  prevents duplicates and a missed run is worse than an overlapping one. */
 const LOOKBACK_MINUTES = 15;
+
+/** Read once per cold start rather than per email. */
+let cachedNudgeTemplate: string | null = null;
+function nudgeTemplate(): string {
+  if (cachedNudgeTemplate === null) {
+    cachedNudgeTemplate = readFileSync(
+      join(process.cwd(), 'emails', 'inactive-nudge.html'),
+      'utf8',
+    );
+  }
+  return cachedNudgeTemplate;
+}
 
 type Subscription = { endpoint: string; p256dh: string; auth: string };
 
@@ -204,6 +220,86 @@ export default async function handler(req: Req, res: Res) {
       streakReminder(person.streak ?? 0, person.partner_name ?? 'Your partner'),
       person.local_date,
     );
+  }
+
+  // ── The inactive-partner nudge. EMAIL only, per her spec: push is reserved
+  //    for the partner or the streak, and this is neither.
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+  const emailFrom = process.env.EMAIL_FROM?.trim() || 'Alyne <hello@joinalyne.com>';
+  const appUrl = process.env.APP_URL?.trim() || 'https://app.joinalyne.com';
+
+  if (resendKey) {
+    const { data: nudges, error: nudgeError } = await db.rpc('pairs_needing_nudge');
+    if (nudgeError) {
+      console.error('[nudge] selection failed:', nudgeError.message);
+    }
+
+    for (const row of (nudges ?? []) as {
+      recipient_id: string; recipient_name: string | null; recipient_email: string;
+      recipient_avatar: string | null; partner_name: string | null;
+      partner_avatar: string | null; days_silent: number;
+    }[]) {
+      // Claim before sending, exactly as the push path does, so two overlapping
+      // runs cannot both email the same person.
+      const { error: claimError } = await db.from('notification_log').insert({
+        user_id: row.recipient_id,
+        kind: 'inactive_nudge',
+        local_date: localDateFor(null),
+      });
+      if (claimError) continue;
+
+      try {
+        // Initials rather than a glyph where someone has no photo, matching the
+        // match-notification treatment.
+        let template = applyAvatar(
+          nudgeTemplate(), 'avatar_url', row.recipient_avatar,
+          initialFor(row.recipient_name), '#104241',
+        );
+        template = applyAvatar(
+          template, 'partner_avatar_url', row.partner_avatar,
+          initialFor(row.partner_name), '#A8893F',
+        );
+
+        const { html, missing } = render(
+          template,
+          inactiveNudgeVars({
+            appUrl,
+            recipientName: row.recipient_name,
+            partnerName: row.partner_name,
+            daysSilent: row.days_silent,
+            recipientAvatarUrl: row.recipient_avatar,
+            partnerAvatarUrl: row.partner_avatar,
+          }),
+        );
+        if (missing.length) {
+          throw new Error(`nudge template variables not supplied: ${missing.join(', ')}`);
+        }
+
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: emailFrom,
+            to: row.recipient_email,
+            subject: `${row.partner_name ?? 'Your partner'} has been quiet`,
+            html,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(`Resend ${response.status}: ${(await response.text()).slice(0, 200)}`);
+        }
+        record('inactive_nudge');
+      } catch (err) {
+        // Release the claim so the next run can retry, rather than leaving
+        // someone marked as nudged when nothing was sent.
+        await db.from('notification_log')
+          .delete()
+          .eq('user_id', row.recipient_id)
+          .eq('kind', 'inactive_nudge')
+          .eq('local_date', localDateFor(null));
+        console.error('[nudge] send failed:', (err as Error).message);
+      }
+    }
   }
 
   return res.status(200).json({ ok: true, sent });

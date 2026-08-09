@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { render, matchNotificationVars, GOAL_LABELS } from '../../api/_email';
+import { render, matchNotificationVars, inactiveNudgeVars, GOAL_LABELS } from '../../api/_email';
 import { GOAL_LABELS as CLIENT_GOAL_LABELS } from './goals';
 
 // cwd rather than import.meta.url: on Windows the URL form resolved to
@@ -119,5 +119,64 @@ describe('match-notification template', () => {
     const { html, missing } = render(template('match-notification.html'), anon);
     expect(missing).toEqual([]);
     expect(html).toContain('there, meet your partner.');
+  });
+});
+
+describe('inactive-nudge template', () => {
+  const vars = inactiveNudgeVars({
+    appUrl: 'https://app.joinalyne.com',
+    recipientName: 'Ada',
+    partnerName: 'Bo',
+    daysSilent: 4,
+  });
+
+  it('renders with nothing left over', () => {
+    const { missing } = render(template('inactive-nudge.html'), vars);
+    expect(missing).toEqual([]);
+  });
+
+  it('addresses the ACTIVE partner and names the silent one', () => {
+    // Reversed, this would tell someone off for their own absence.
+    expect(vars.name).toBe('Ada');
+    expect(vars.partner_name).toBe('Bo');
+  });
+
+  it('passes the silence length as a string, since templates are text', () => {
+    expect(vars.days).toBe('4');
+  });
+
+  it('uses the SILENT partner initial for the fallback avatar', () => {
+    expect(vars.initial).toBe('B');
+  });
+
+  it('never leaves a placeholder visible for an unnamed partner', () => {
+    const anon = inactiveNudgeVars({
+      appUrl: 'https://app.joinalyne.com',
+      recipientName: null, partnerName: null, daysSilent: 3,
+    });
+    const { html, missing } = render(template('inactive-nudge.html'), anon);
+    expect(missing).toEqual([]);
+    expect(html).not.toContain('{{');
+  });
+
+  it('never points an image at the Wix marketing domain', () => {
+    const { html } = render(template('inactive-nudge.html'), vars);
+    const images = [...html.matchAll(/<img[^>]+src="([^"]+)"/g)].map((m) => m[1]);
+    for (const src of images) {
+      expect(src).not.toMatch(/^https:\/\/(www\.)?joinalyne\.com/);
+    }
+  });
+});
+
+describe('waitlist-confirmation template', () => {
+  it('renders with the variables it declares', () => {
+    const { missing } = render(template('waitlist-confirmation.html'), {
+      app_url: 'https://app.joinalyne.com',
+      asset_base: 'https://app.joinalyne.com/email',
+      name: 'Ada',
+      goal_label: 'Writing',
+      unsubscribe_url: 'https://app.joinalyne.com/settings',
+    });
+    expect(missing).toEqual([]);
   });
 });

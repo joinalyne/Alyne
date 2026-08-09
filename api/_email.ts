@@ -58,6 +58,36 @@ export const GOAL_LABELS: Record<string, string> = {
 };
 
 /**
+ * Variables for the inactive-partner nudge (v2 template).
+ *
+ * Sent to the person still showing up, about the one who has gone quiet, so
+ * `name` is the ACTIVE partner and `partner_name` is the silent one. Getting
+ * those the wrong way round would tell someone off for their own absence.
+ */
+export function inactiveNudgeVars(opts: {
+  appUrl: string;
+  recipientName: string | null;
+  partnerName: string | null;
+  daysSilent: number;
+  recipientAvatarUrl?: string | null;
+  partnerAvatarUrl?: string | null;
+}): EmailVars {
+  const assetBase = `${opts.appUrl}/email`;
+  const fallbackAvatar = `${assetBase}/avatar-glyph.png`;
+  return {
+    app_url: opts.appUrl,
+    asset_base: assetBase,
+    name: opts.recipientName ?? 'there',
+    partner_name: opts.partnerName ?? 'your partner',
+    days: String(opts.daysSilent),
+    initial: initialFor(opts.partnerName),
+    avatar_url: opts.recipientAvatarUrl || fallbackAvatar,
+    partner_avatar_url: opts.partnerAvatarUrl || fallbackAvatar,
+    unsubscribe_url: `${opts.appUrl}/settings`,
+  };
+}
+
+/**
  * Swap an avatar <img> for an initials circle when there is no photo.
  *
  * v5 replaced the glyph fallback with initials, and email cannot do conditionals,

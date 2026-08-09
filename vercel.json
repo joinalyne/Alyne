@@ -8,6 +8,9 @@
   "functions": {
     "api/send-match-email.ts": {
       "includeFiles": "emails/**"
+    },
+    "api/send-notifications.ts": {
+      "includeFiles": "emails/**"
     }
   },
   "crons": [

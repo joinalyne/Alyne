@@ -623,6 +623,63 @@ async function main() {
   const { data: eventsVisible } = await payer.client.from('stripe_events').select('id');
   check('event history is not readable by users', (eventsVisible ?? []).length === 0);
 
+  console.log('\n— inactive-partner nudge (M4) —');
+  const active = await makeUser('active', 'Active', 'quitting');
+  const silent = await makeUser('quiet', 'Quiet', 'quitting');
+  await admin.from('match_queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await active.client.rpc('enqueue_and_match');
+  await silent.client.rpc('enqueue_and_match');
+
+  const daysAgo = (n) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toLocaleDateString('en-CA');
+  };
+  const setLastCheckIn = (id, date) =>
+    admin.from('profiles').update({ last_check_in_date: date }).eq('id', id);
+
+  // Nobody is due while both are showing up.
+  await setLastCheckIn(active.id, daysAgo(0));
+  await setLastCheckIn(silent.id, daysAgo(0));
+  let { data: nudgeDue } = await admin.rpc('pairs_needing_nudge');
+  check('nobody is nudged while both are active',
+    !(nudgeDue ?? []).some((r) => r.recipient_id === active.id), `${nudgeDue?.length} due overall`);
+
+  // Two days is not yet three.
+  await setLastCheckIn(silent.id, daysAgo(2));
+  ({ data: nudgeDue } = await admin.rpc('pairs_needing_nudge'));
+  check('two days of silence is not enough',
+    !(nudgeDue ?? []).some((r) => r.recipient_id === active.id));
+
+  // Three days is the threshold in her spec.
+  await setLastCheckIn(silent.id, daysAgo(3));
+  ({ data: nudgeDue } = await admin.rpc('pairs_needing_nudge'));
+  const row = (nudgeDue ?? []).find((r) => r.recipient_id === active.id);
+  check('three days triggers it', !!row, row ? `${row.days_silent} days silent` : 'not found');
+  check('the ACTIVE partner is the recipient, not the silent one',
+    row?.recipient_name === 'Active' && row?.partner_name === 'Quiet',
+    `${row?.recipient_name} about ${row?.partner_name}`);
+  check('it carries an address to send to', !!row?.recipient_email, row?.recipient_email);
+
+  // If the recipient has also gone quiet, nudging them about their partner would
+  // be nagging them about their own absence.
+  await setLastCheckIn(active.id, daysAgo(4));
+  ({ data: nudgeDue } = await admin.rpc('pairs_needing_nudge'));
+  check('a recipient who is also absent is not nudged',
+    !(nudgeDue ?? []).some((r) => r.recipient_id === active.id));
+
+  // Once nudged, not again this week. Her principle is no nagging.
+  await setLastCheckIn(active.id, daysAgo(0));
+  await admin.from('notification_log').insert({
+    user_id: active.id, kind: 'inactive_nudge', local_date: daysAgo(0),
+  });
+  ({ data: nudgeDue } = await admin.rpc('pairs_needing_nudge'));
+  check('not nudged twice in the same week',
+    !(nudgeDue ?? []).some((r) => r.recipient_id === active.id));
+
+  const { error: nudgeDenied } = await active.client.rpc('pairs_needing_nudge');
+  check('a user cannot run the nudge query', !!nudgeDenied, nudgeDenied?.code);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);
