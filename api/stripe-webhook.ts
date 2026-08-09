@@ -183,6 +183,13 @@ export default async function handler(req: Req, res: Res) {
           p_current_period_end: toIso(
             (sub as unknown as { current_period_end?: number }).current_period_end,
           ),
+          // A cancellation scheduled from the portal arrives as `updated` with
+          // this set, while the status stays active until the period ends. Salomeh
+          // cancelled and Settings said nothing, because this was never read.
+          p_cancel_at_period_end:
+            event.type === 'customer.subscription.deleted'
+              ? false
+              : ((sub as unknown as { cancel_at_period_end?: boolean }).cancel_at_period_end ?? false),
         });
         // Unchecked before, which is how a subscription could go live in Stripe
         // while the app still said Free.
@@ -222,6 +229,8 @@ export default async function handler(req: Req, res: Res) {
           p_current_period_end: toIso(
             (sub as unknown as { current_period_end?: number }).current_period_end,
           ),
+          p_cancel_at_period_end:
+            (sub as unknown as { cancel_at_period_end?: boolean }).cancel_at_period_end ?? false,
         });
         if (applied.error) throw new Error(`apply_subscription_state: ${applied.error.message}`);
         break;

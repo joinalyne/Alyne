@@ -41,3 +41,18 @@ export function streakIsCurrent(
   const yesterday = todayLocalDate(new Date(now.getTime() - 86_400_000));
   return lastCheckInDate === today || lastCheckInDate === yesterday;
 }
+
+/**
+ * A date for display, e.g. "6 Sept" or "Sep 6" depending on where the reader is.
+ *
+ * Locale-aware rather than a fixed format. Salomeh's example was "Sept 6", which
+ * is right for her, but the users are largely Canadian and a British reader would
+ * expect the day first. Letting the browser decide reads naturally for everyone
+ * and costs nothing.
+ */
+export function shortDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}

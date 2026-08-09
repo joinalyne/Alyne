@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/useAuth';
 import { Avatar } from '../components/Avatar';
 import { pushSupport, enablePush, disablePush, type PushSupport } from '../lib/push';
 import { openBillingPortal } from '../lib/supabase';
+import { shortDate } from '../lib/dates';
 import { Alert } from '../components/Alert';
 
 const GOALS = [
@@ -53,7 +54,19 @@ export default function Settings() {
   const email = profile?.email ?? '';
   const selectedGoal = pickedGoal ?? profile?.current_goal ?? 'fitness';
   const avatarUrl = uploadedAvatar ?? profile?.avatar_url ?? null;
-  const plan = profile?.plan === 'paid' ? 'Paid' : 'Free';
+  // "Paid — cancels 6 Sept" rather than a bare "Paid". Someone who cancels and
+  // sees no acknowledgement will assume it failed, and cancel again or ask.
+  // Access genuinely continues to that date, so this states a fact rather than a
+  // warning.
+  const cancelsOn = profile?.cancel_at_period_end
+    ? shortDate(profile.current_period_end)
+    : null;
+  const plan =
+    profile?.plan !== 'paid'
+      ? 'Free'
+      : cancelsOn
+        ? `Paid — cancels ${cancelsOn}`
+        : 'Paid';
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 

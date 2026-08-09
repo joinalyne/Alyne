@@ -3,8 +3,11 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { AuthContext, type Profile } from './auth-context'
 
+// One literal, deliberately long. PostgREST infers the row type from the select
+// string, so splitting it into a concatenation loses the inference and the result
+// widens to an error type.
 const PROFILE_COLUMNS =
-  'id, email, display_name, avatar_url, timezone, current_goal, plan, current_streak, last_check_in_date, is_admin'
+  'id, email, display_name, avatar_url, timezone, current_goal, plan, cancel_at_period_end, current_period_end, current_streak, last_check_in_date, is_admin'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)

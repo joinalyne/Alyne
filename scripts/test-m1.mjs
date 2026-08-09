@@ -623,6 +623,58 @@ async function main() {
   const { data: eventsVisible } = await payer.client.from('stripe_events').select('id');
   check('event history is not readable by users', (eventsVisible ?? []).length === 0);
 
+  {
+    console.log('');
+    console.log('--- pending cancellation (M3) ---');
+    // Salomeh cancelled her test subscription; Stripe scheduled it correctly but
+    // Settings said only "Paid", so it looked as though the cancellation failed.
+    const canceller = await makeUser('cancel', 'Canceller', 'other');
+    const periodEnd = new Date(Date.now() + 30 * 86400000).toISOString();
+
+    const setBilling = (status, cancelling) =>
+      admin.rpc('apply_subscription_state', {
+        p_user_id: canceller.id,
+        p_customer_id: 'cus_cancel_test',
+        p_subscription_id: 'sub_cancel_test',
+        p_status: status,
+        p_current_period_end: periodEnd,
+        p_cancel_at_period_end: cancelling,
+      });
+    const billing = async () => {
+      const { data } = await admin.from('profiles')
+        .select('plan, cancel_at_period_end, current_period_end').eq('id', canceller.id).single();
+      return data;
+    };
+
+    await setBilling('active', false);
+    let b = await billing();
+    check('an active subscription shows no pending cancellation',
+      b.plan === 'paid' && b.cancel_at_period_end === false, b.plan + ' / ' + b.cancel_at_period_end);
+
+    await setBilling('active', true);
+    b = await billing();
+    check('cancelling keeps access until the period ends', b.plan === 'paid', 'plan is ' + b.plan);
+    check('and records that a cancellation is pending', b.cancel_at_period_end === true);
+    check('with a date to show the user', !!b.current_period_end, b.current_period_end?.slice(0, 10));
+
+    // A lapsed plan must not leave a stale cancellation notice behind.
+    await setBilling('canceled', true);
+    b = await billing();
+    check('a lapsed plan clears the pending flag',
+      b.plan === 'free' && b.cancel_at_period_end === false, b.plan + ' / ' + b.cancel_at_period_end);
+
+    await setBilling('active', false);
+    b = await billing();
+    check('resubscribing comes back clean',
+      b.plan === 'paid' && b.cancel_at_period_end === false);
+
+    const { error: selfCancel } = await canceller.client
+      .from('profiles').update({ cancel_at_period_end: true }).eq('id', canceller.id);
+    const after = await billing();
+    check('a user cannot fake a pending cancellation',
+      after.cancel_at_period_end === false, selfCancel ? 'rejected ' + selfCancel.code : 'ignored');
+  }
+
   console.log('\n— inactive-partner nudge (M4) —');
   const active = await makeUser('active', 'Active', 'quitting');
   const silent = await makeUser('quiet', 'Quiet', 'quitting');

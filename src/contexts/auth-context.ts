@@ -10,6 +10,9 @@ export type Profile = {
   timezone: string
   current_goal: string | null
   plan: 'free' | 'paid'
+  /** Stripe has a cancellation scheduled; access lasts until current_period_end. */
+  cancel_at_period_end: boolean
+  current_period_end: string | null
   current_streak: number
   last_check_in_date: string | null
   is_admin: boolean
