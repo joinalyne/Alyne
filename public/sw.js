@@ -8,7 +8,7 @@
  * Push handlers live at the bottom of this file. The subscription flow is in
  * src/lib/push.ts.
  */
-const VERSION = 'alyne-v2';
+const VERSION = 'alyne-v3';
 const SHELL = ['/', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -85,20 +85,44 @@ self.addEventListener('push', (event) => {
   if (!title) return;
 
   event.waitUntil(
-    self.registration.showNotification(title, {
+    (async () => {
+      // Badge count on the app icon, which Salomeh asked for: the banner
+      // appeared but the icon showed nothing.
+      //
+      // Counted from what is actually on screen rather than kept in a variable,
+      // because a service worker is terminated between pushes and any counter it
+      // held would reset to zero. Notifications sharing a tag collapse, so this
+      // matches what the user can see.
+      if ('setAppBadge' in self.navigator) {
+        try {
+          const shown = await self.registration.getNotifications();
+          // +1 for the one about to be displayed.
+          await self.navigator.setAppBadge(shown.length + 1);
+        } catch {
+          // Unsupported or refused. The notification still matters more.
+        }
+      }
+
+      return self.registration.showNotification(title, {
       body: body || '',
       // Same tag replaces rather than stacks, per the spec's offline rule.
       tag: tag || 'alyne',
       renotify: true,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      data: { url: url || '/' },
-    }),
+      icon: '/icons/icon-192-v2.png',
+      badge: '/icons/icon-192-v2.png',
+        data: { url: url || '/' },
+      });
+    })(),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // Cleared here as well as on app focus, because tapping a notification is the
+  // clearest possible signal that it has been seen.
+  if ('clearAppBadge' in self.navigator) {
+    void self.navigator.clearAppBadge().catch(() => {});
+  }
   const target = event.notification.data?.url || '/';
 
   event.waitUntil(
@@ -133,4 +157,17 @@ self.addEventListener('pushsubscriptionchange', (event) => {
       }
     })(),
   );
+});
+
+/* The page tells us when it has been opened or refocused, since a service worker
+ * cannot observe visibility itself. Clearing on open is what stops a stale count
+ * sitting on the icon after someone has already read everything. */
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'clear-badge') return;
+  if ('clearAppBadge' in self.navigator) {
+    void self.navigator.clearAppBadge().catch(() => {});
+  }
+  void self.registration.getNotifications().then((list) => {
+    for (const n of list) n.close();
+  });
 });

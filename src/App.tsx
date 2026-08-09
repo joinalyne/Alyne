@@ -4,6 +4,7 @@ import { InstallBanner } from './components/InstallBanner';
 import { AuthProvider } from './contexts/AuthProvider';
 import { useAuth } from './contexts/useAuth';
 import { useAutoLogout } from './hooks/useAutoLogout';
+import { useClearBadge } from './hooks/useClearBadge';
 
 /**
  * Sits inside AuthProvider so it can see whether anyone is signed in. Renders
@@ -12,6 +13,9 @@ import { useAutoLogout } from './hooks/useAutoLogout';
 function SessionWatcher() {
   const { session } = useAuth();
   useAutoLogout(!!session);
+  // The service worker sets the badge count on push; only the page can tell it
+  // the app has been opened.
+  useClearBadge(!!session);
   return null;
 }
 
