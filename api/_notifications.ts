@@ -6,6 +6,14 @@
 // — "Don't break your streak" is the hardest tone permitted. Do not soften or
 // embellish these without asking her.
 
+/**
+ * "1 day", not "1 days". Salomeh caught this in a real push notification.
+ * Zero stays plural, which is correct English: "0 days".
+ */
+export function pluraliseDays(count: number): string {
+  return `${count} ${count === 1 ? 'day' : 'days'}`;
+}
+
 export type NotificationKind =
   | 'partner_checked_in'
   | 'streak_reminder'
@@ -28,7 +36,7 @@ export type PushPayload = {
 export function partnerCheckedIn(partner: string, partnerStreak: number): PushPayload {
   return {
     title: `${partner} just checked in`,
-    body: `Their streak: ${partnerStreak} days. Your move.`,
+    body: `Their streak: ${pluraliseDays(partnerStreak)}. Your move.`,
     tag: 'partner-checkin',
     url: '/home',
   };
@@ -44,7 +52,7 @@ export function streakReminder(streak: number, partner: string): PushPayload {
     title: "Your streak's waiting",
     body:
       streak >= 3
-        ? `${streak} days on the line — check in before the day ends.`
+        ? `${pluraliseDays(streak)} on the line — check in before the day ends.`
         : `A quick check-in keeps you going. ${partner} will see it.`,
     tag: 'streak-reminder',
     url: '/check-in',

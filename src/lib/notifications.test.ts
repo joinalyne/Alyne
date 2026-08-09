@@ -112,3 +112,22 @@ describe('deep links', () => {
     }
   });
 });
+
+describe('day pluralisation', () => {
+  it('says "1 day", not "1 days"', () => {
+    // Salomeh caught this in a real notification: "Their streak: 1 days".
+    expect(partnerCheckedIn('Bo', 1).body).toBe('Their streak: 1 day. Your move.');
+  });
+
+  it('keeps the plural for zero and above one', () => {
+    expect(partnerCheckedIn('Bo', 0).body).toContain('0 days');
+    expect(partnerCheckedIn('Bo', 2).body).toContain('2 days');
+    expect(partnerCheckedIn('Bo', 21).body).toContain('21 days');
+  });
+
+  it('applies to the streak reminder too, not just the check-in notice', () => {
+    // The reminder only shows a number at three or more, so it cannot say
+    // "1 days", but the helper is shared so it stays correct if that changes.
+    expect(streakReminder(3, 'Bo').body).toContain('3 days on the line');
+  });
+});
