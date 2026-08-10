@@ -1,13 +1,13 @@
 import { ChevronLeft, Camera, Pencil, LogOut, Check } from 'lucide-react';
 import { Dumbbell, PenLine, BookOpen, Unlock, Sparkles, MoreHorizontal } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { supabase, updateDisplayName, changeGoal, uploadAvatar, type Goal } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
 import { Avatar } from '../components/Avatar';
 import { pushSupport, enablePush, disablePush, type PushSupport } from '../lib/push';
 import { openBillingPortal } from '../lib/supabase';
-import { shortDate } from '../lib/dates';
+import { planLabel } from '../lib/plan';
 import { Alert } from '../components/Alert';
 
 const GOALS = [
@@ -54,21 +54,43 @@ export default function Settings() {
   const email = profile?.email ?? '';
   const selectedGoal = pickedGoal ?? profile?.current_goal ?? 'fitness';
   const avatarUrl = uploadedAvatar ?? profile?.avatar_url ?? null;
-  // "Paid — cancels 6 Sept" rather than a bare "Paid". Someone who cancels and
-  // sees no acknowledgement will assume it failed, and cancel again or ask.
-  // Access genuinely continues to that date, so this states a fact rather than a
-  // warning.
-  const cancelsOn = profile?.cancel_at_period_end
-    ? shortDate(profile.current_period_end)
-    : null;
-  const plan =
-    profile?.plan !== 'paid'
-      ? 'Free'
-      : cancelsOn
-        ? `Paid — cancels ${cancelsOn}`
-        : 'Paid';
+  // "Paid — cancels 6 Sept" rather than a bare "Paid". Every branch and the
+  // reasoning behind it lives in lib/plan.ts, where it is tested.
+  const plan = planLabel(profile);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Coming back from Stripe's portal is not a fresh mount. Opening it is a real
+  // navigation away (window.location.href), and both iOS Safari and Chrome
+  // restore this page from the back-forward cache with React state intact. So
+  // "Opening…" stayed on the button indefinitely, and anything done in the
+  // portal was invisible because the profile was never refetched — Salomeh hit
+  // both: a cancellation she had just made did not show, and the button stuck.
+  //
+  // Refetching on every return, rather than only after the portal, is
+  // deliberate: billing state is written by the webhook, so this screen can go
+  // stale while it is open regardless of how it was left.
+  useEffect(() => {
+    const resync = () => {
+      setPortalBusy(false);
+      void refreshProfile();
+    };
+
+    // pageshow fires on a bfcache restore, where no other event does.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) resync();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') resync();
+    };
+
+    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [refreshProfile]);
 
   // Fall back rather than assert: a goal value the UI does not know about must
   // not crash the whole screen.

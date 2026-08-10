@@ -15,6 +15,8 @@ const profile = (over: Partial<Profile> = {}): Profile => ({
   timezone: 'America/Vancouver',
   current_goal: 'writing',
   plan: 'free',
+  cancel_at_period_end: false,
+  current_period_end: null,
   current_streak: 0,
   last_check_in_date: null,
   is_admin: false,

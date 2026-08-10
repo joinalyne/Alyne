@@ -86,6 +86,44 @@ function toIso(seconds: number | null | undefined): string | null {
   return seconds ? new Date(seconds * 1000).toISOString() : null;
 }
 
+/**
+ * The end of the current billing period, in seconds, or undefined.
+ *
+ * Stripe moved `current_period_end` OFF the subscription and onto each
+ * subscription item in API version 2025-03-31.basil. On the SDK we use (v22)
+ * `Stripe.Subscription` has no such property at all — only `cancel_at` and
+ * `cancel_at_period_end` remain at the top level. Reading `sub.current_period_end`
+ * therefore always produced `undefined`, which stored NULL, which is why:
+ *
+ *   - every paid profile had current_period_end NULL, and
+ *   - "Paid — cancels 6 Sept" could never render, because the flag was set but
+ *     the date it needs was missing. Salomeh reported the missing date; the flag
+ *     was never the problem.
+ *
+ * The old top-level field is still read first so that an older pinned API
+ * version, and the hand-built fixtures in the tests, keep working. Items can bill
+ * on different schedules, so the LATEST item end is used: that is the date access
+ * genuinely runs to. `cancel_at` is the last resort, because when a cancellation
+ * is scheduled it equals the period end by definition.
+ */
+export function periodEndSeconds(sub: unknown): number | undefined {
+  const s = sub as {
+    current_period_end?: number;
+    cancel_at?: number | null;
+    items?: { data?: Array<{ current_period_end?: number }> };
+  };
+
+  if (typeof s.current_period_end === 'number') return s.current_period_end;
+
+  const itemEnds = (s.items?.data ?? [])
+    .map((item) => item.current_period_end)
+    .filter((end): end is number => typeof end === 'number');
+
+  if (itemEnds.length > 0) return Math.max(...itemEnds);
+
+  return typeof s.cancel_at === 'number' ? s.cancel_at : undefined;
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -180,9 +218,7 @@ export default async function handler(req: Req, res: Res) {
           p_customer_id: customerId,
           p_subscription_id: sub.id,
           p_status: status,
-          p_current_period_end: toIso(
-            (sub as unknown as { current_period_end?: number }).current_period_end,
-          ),
+          p_current_period_end: toIso(periodEndSeconds(sub)),
           // A cancellation scheduled from the portal arrives as `updated` with
           // this set, while the status stays active until the period ends. Salomeh
           // cancelled and Settings said nothing, because this was never read.
@@ -226,9 +262,7 @@ export default async function handler(req: Req, res: Res) {
           p_customer_id: customerId,
           p_subscription_id: sub.id,
           p_status: sub.status,
-          p_current_period_end: toIso(
-            (sub as unknown as { current_period_end?: number }).current_period_end,
-          ),
+          p_current_period_end: toIso(periodEndSeconds(sub)),
           p_cancel_at_period_end:
             (sub as unknown as { cancel_at_period_end?: boolean }).cancel_at_period_end ?? false,
         });

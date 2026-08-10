@@ -178,11 +178,11 @@
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
 
-    /* iOS Safari paints its own gradient and inner shadow on buttons, which
-       showed as a darker band across the top of the disabled "Checked In Today"
-       state. It only appears on a real iPhone, so it survived every desktop
-       check. Resetting the appearance and clearing the background image is the
-       fix; background-color set elsewhere is untouched. */
+    /* Normalisation only. iOS Safari does paint its own gradient on unstyled
+       buttons, so this is worth keeping, but it did NOT fix the dark band on the
+       checked-in "Checked In Today" button, which is what it was originally added
+       for. That band was the partner card's drop shadow showing through a
+       translucent (disabled:opacity-60) button. See lib/checkInButton.ts. */
     -webkit-appearance: none;
     appearance: none;
     background-image: none;

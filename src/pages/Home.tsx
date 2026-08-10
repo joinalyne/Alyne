@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/useAuth';
 import { todayLocalDate } from '../lib/dates';
 import { checkedInMessage } from '../lib/checkedInMessage';
 import { PartnerCheckIn } from '../components/PartnerCheckIn';
+import { checkInButtonStyle } from '../lib/checkInButton';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
@@ -154,18 +155,14 @@ export default function Home() {
 
         {/* Check In CTA */}
         <Link to="/check-in">
+          {/* No disabled:opacity here on purpose. A translucent button let the
+              partner card's drop shadow show through its top edge, which is the
+              dark band Salomeh reported. checkInButtonStyle carries the full
+              explanation and is tested. */}
           <button
-            className="w-full transition-all duration-200 active:scale-[0.98] mb-6 disabled:opacity-60"
+            className="w-full transition-all duration-200 active:scale-[0.98] mb-6"
             disabled={checkedInToday}
-            style={{
-              backgroundColor: '#104241',
-              color: '#FFFFFF',
-              borderRadius: '1.25rem',
-              padding: '18px',
-              fontSize: '1.1rem',
-              fontWeight: 700,
-              boxShadow: '0 4px 20px rgba(16,66,65,0.25)',
-            }}
+            style={checkInButtonStyle(checkedInToday)}
           >
             {checkedInToday ? 'Checked In Today' : 'Check In Today'}
           </button>
