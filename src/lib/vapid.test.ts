@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createECDH } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { derivePublicKey, checkVapidPair } from '../../api/_vapid';
 
 /**
  * Is the committed VAPID public key really the partner of the private key in use?
@@ -25,10 +26,15 @@ const fromB64Url = (s: string) =>
 const toB64Url = (b: Buffer) =>
   b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+/**
+ * The real implementation, not a copy of it. This test used to derive the key
+ * itself, which meant it verified the keys but not the code that now guards them
+ * at runtime.
+ */
 function derivePublic(privateKey: string): string {
-  const ecdh = createECDH('prime256v1');
-  ecdh.setPrivateKey(fromB64Url(privateKey));
-  return toB64Url(ecdh.getPublicKey());
+  const derived = derivePublicKey(privateKey);
+  if (!derived) throw new Error('not a valid P-256 private key');
+  return derived;
 }
 
 /** The key committed in the client, which is what browsers subscribe against. */
@@ -82,5 +88,64 @@ describe('VAPID keys', () => {
     expect(derivePublic('Pqlg4epll_D1AhSzK-Qh-i0joO9sGH5_gShqm5iAVEw')).not.toBe(
       committedPublicKey(),
     );
+  });
+});
+
+/**
+ * The runtime guard in api/send-notifications.ts. The pair was rotated twice and
+ * the one-time link carrying the second private key was never opened, so a
+ * production mismatch is a live possibility rather than a hypothetical one.
+ */
+describe('the runtime pair check', () => {
+  const pair = () => {
+    const ecdh = createECDH('prime256v1');
+    ecdh.generateKeys();
+    return {
+      priv: toB64Url(ecdh.getPrivateKey()),
+      pub: toB64Url(ecdh.getPublicKey()),
+    };
+  };
+
+  it('accepts a genuine pair', () => {
+    const { priv, pub } = pair();
+    expect(checkVapidPair(priv, pub)).toEqual({ ok: true, derived: pub });
+  });
+
+  it('rejects two valid keys that are not partners', () => {
+    // Exactly what web-push accepts without complaint, and the reason this
+    // exists at all.
+    const a = pair();
+    const b = pair();
+    const result = checkVapidPair(a.priv, b.pub);
+    expect(result.ok).toBe(false);
+    expect(result.derived).toBe(a.pub);
+  });
+
+  it('reports the key that WOULD match, so the error is actionable', () => {
+    const a = pair();
+    const b = pair();
+    // The derived key is what VITE_VAPID_PUBLIC_KEY should be set to. It is a
+    // public key, so returning it in an error response leaks nothing.
+    expect(checkVapidPair(a.priv, b.pub).derived).toBe(a.pub);
+  });
+
+  it('does not throw on a malformed private key', () => {
+    // This runs on a request path; a bad value must give a diagnosable response
+    // rather than a 500.
+    for (const bad of ['', 'not-base64!!', 'AAAA', 'x'.repeat(200)]) {
+      expect(() => checkVapidPair(bad, 'irrelevant')).not.toThrow();
+      expect(checkVapidPair(bad, 'irrelevant').ok).toBe(false);
+    }
+  });
+
+  it('tolerates whitespace on the public key, as env vars carry newlines', () => {
+    const { priv, pub } = pair();
+    expect(checkVapidPair(priv, `${pub}\n`).ok).toBe(true);
+  });
+
+  it('agrees with the committed pair the app actually ships', () => {
+    const priv = localPrivateKey();
+    if (!priv) return; // CI has no .env
+    expect(checkVapidPair(priv, committedPublicKey()).ok).toBe(true);
   });
 });

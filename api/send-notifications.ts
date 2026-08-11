@@ -24,6 +24,7 @@ import {
 import {
   GOAL_LABELS, render, inactiveNudgeVars, applyAvatar, initialFor,
 } from './_email.js';
+import { checkVapidPair } from './_vapid.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -75,6 +76,26 @@ export default async function handler(req: Req, res: Res) {
   }
   if (!vapidPrivate) {
     return res.status(503).json({ error: 'VAPID_PRIVATE_KEY is not configured' });
+  }
+
+  // setVapidDetails below would accept a mismatched pair silently, and every
+  // push would then be rejected by the push service for a bad signature — which
+  // looks like a subscription problem, not a configuration one. Checking here
+  // turns that into one obvious failure with the fix in it. The derived public
+  // key is safe to return: it is already in the client bundle.
+  const pair = checkVapidPair(vapidPrivate, vapidPublic);
+  if (!pair.ok) {
+    console.error('[push] VAPID keys are not a pair; no notification can be delivered');
+    return res.status(503).json({
+      error: 'VAPID keys are not a pair',
+      detail: pair.derived
+        ? 'VAPID_PRIVATE_KEY does not match the public key the app subscribes with. ' +
+          'Either set VITE_VAPID_PUBLIC_KEY to the derived key below and redeploy, ' +
+          'or replace VAPID_PRIVATE_KEY with the partner of the current public key.'
+        : 'VAPID_PRIVATE_KEY is not a valid P-256 private key.',
+      derivedPublicKey: pair.derived,
+      appPublicKey: vapidPublic,
+    });
   }
 
   webpush.setVapidDetails(subject, vapidPublic, vapidPrivate);
