@@ -1,14 +1,21 @@
 import { Settings, UserRound, Bell } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useEffect, useState } from 'react';
-import { getRequeueNotice, type RequeueNotice } from '../lib/supabase';
+import { enqueueAndMatch, getRequeueNotice, type RequeueNotice } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
 import { Avatar } from '../components/Avatar';
 import { AlyneWordmark } from '../components/AlyneWordmark';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
+/**
+ * Gentler than FindingPartner's poll. That screen is a few seconds of held
+ * attention; this one is where somebody sits for hours or days.
+ */
+const POLL_MS = 20_000;
+
 export default function HomeEmpty() {
+  const navigate = useNavigate();
   // The user's own profile, not a stock portrait. This screen is what someone
   // sees while waiting for a partner, so it is the first thing a brand new
   // signup looks at — showing them a stranger's face is a poor welcome.
@@ -21,6 +28,53 @@ export default function HomeEmpty() {
   // A new match clears it without any bookkeeping, because requeue_notice()
   // returns nothing once the user is matched again.
   const [notice, setNotice] = useState<RequeueNotice | null>(null);
+
+  /**
+   * Make sure the person looking at this screen is ACTUALLY in the queue.
+   *
+   * This screen promises "Finding your match" and "We'll notify you as soon as
+   * you're paired", but it used to do neither: enqueueing happened only on
+   * FindingPartner, which is a screen you pass through once, straight after
+   * picking a goal. Anything that interrupted that single moment left the user
+   * with a goal, no match and no queue row, and nothing ever retried. Every
+   * later visit routed Home -> here, which reassured them while nothing at all
+   * was happening.
+   *
+   * Salomeh's Mia account sat in exactly that state for four days, invisible
+   * because the screen looked correct. She only noticed when a friend signed up
+   * on the same goal and no match happened.
+   *
+   * enqueue_and_match() is idempotent: a partial unique index keeps one waiting
+   * row, and it returns any existing match rather than double-pairing. So
+   * calling it on mount is safe, and it heals anyone already stranded the next
+   * time they open the app.
+   */
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+
+    async function ensureQueued() {
+      try {
+        const matchId = await enqueueAndMatch();
+        if (!active) return;
+        if (matchId) {
+          navigate('/matched', { replace: true });
+          return;
+        }
+      } catch {
+        // Deliberately swallowed. A transient failure must not strand someone
+        // again, and there is nothing useful to show on a waiting screen, so
+        // the retry below IS the error handling.
+      }
+      if (active) timer = setTimeout(ensureQueued, POLL_MS);
+    }
+
+    void ensureQueued();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [navigate]);
 
   useEffect(() => {
     let active = true;

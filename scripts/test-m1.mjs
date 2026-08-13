@@ -732,6 +732,42 @@ async function main() {
   const { error: nudgeDenied } = await active.client.rpc('pairs_needing_nudge');
   check('a user cannot run the nudge query', !!nudgeDenied, nudgeDenied?.code);
 
+  // ---------------------------------------------------------------------------
+  // Nobody is stranded (regression, 12 Aug)
+  //
+  // Enqueueing used to happen only on FindingPartner, a screen you pass through
+  // once, straight after picking a goal. Anything interrupting that single
+  // moment left a real user with a goal, no match and no queue row, and nothing
+  // ever retried: every later visit routed them to HomeEmpty, which promised
+  // "Finding your match" while no search existed. Salomeh's Mia account sat in
+  // that state for four days and surfaced only when a friend signed up on the
+  // same goal and no match happened.
+  //
+  // Asserted over the WHOLE table rather than a fixture, because the failure was
+  // invisible precisely by looking correct on every individual screen.
+  // ---------------------------------------------------------------------------
+  console.log('\n— nobody stranded (has a goal, but neither matched nor queued) —');
+
+  // Real accounts only. The suite's own fixtures are parked in deliberately odd
+  // states while it runs (ended matches, lapsed plans, mid-requeue), so
+  // including them would fail this every time for the wrong reason.
+  const { data: withGoal } = await admin
+    .from('profiles').select('id, email')
+    .not('current_goal', 'is', null)
+    .not('email', 'like', `%${DOMAIN}`);
+  const { data: liveMatches } = await admin
+    .from('matches').select('user_a, user_b').eq('status', 'active');
+  const { data: waitingRows } = await admin
+    .from('match_queue').select('user_id').eq('status', 'waiting');
+
+  const pairedIds = new Set((liveMatches ?? []).flatMap((m) => [m.user_a, m.user_b]));
+  const queuedIds = new Set((waitingRows ?? []).map((q) => q.user_id));
+  const orphans = (withGoal ?? []).filter((p) => !pairedIds.has(p.id) && !queuedIds.has(p.id));
+
+  check('every user with a goal is either matched or waiting',
+    orphans.length === 0,
+    orphans.length ? orphans.map((o) => o.email).join(', ') : `${withGoal?.length ?? 0} checked`);
+
   await wipeTestUsers();
   console.log(`\n${failures === 0 ? 'All checks passed.' : `${failures} FAILED.`}`);
   process.exit(failures === 0 ? 0 : 1);
