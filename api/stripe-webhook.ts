@@ -106,6 +106,37 @@ function toIso(seconds: number | null | undefined): string | null {
  * genuinely runs to. `cancel_at` is the last resort, because when a cancellation
  * is scheduled it equals the period end by definition.
  */
+/**
+ * Is a cancellation scheduled but not yet in effect?
+ *
+ * NOT simply `cancel_at_period_end`. Cancelling through the Customer Portal
+ * leaves that boolean FALSE while setting `cancel_at` to the moment access ends
+ * and `canceled_at` to when the request was made. Salomeh's own subscription is
+ * exactly that shape:
+ *
+ *   status: active, cancel_at_period_end: false,
+ *   canceled_at: 2026-08-07, cancel_at: 2026-09-06
+ *
+ * Reading only the boolean reported "no cancellation pending" for a subscription
+ * Stripe's own portal describes as "Cancels Sep 6". That is why Settings still
+ * showed a bare "Paid" after the fix to the period-end field: the event HAD been
+ * delivered and processed, and both signals it carried were being read wrongly.
+ *
+ * A subscription that has already ended is not pending, it is done, and its plan
+ * is derived from the status instead.
+ */
+export function cancellationScheduled(sub: unknown): boolean {
+  const s = sub as {
+    cancel_at_period_end?: boolean;
+    cancel_at?: number | null;
+    status?: string;
+  };
+
+  if (s.status === 'canceled') return false;
+  if (s.cancel_at_period_end === true) return true;
+  return typeof s.cancel_at === 'number';
+}
+
 export function periodEndSeconds(sub: unknown): number | undefined {
   const s = sub as {
     current_period_end?: number;
@@ -219,13 +250,14 @@ export default async function handler(req: Req, res: Res) {
           p_subscription_id: sub.id,
           p_status: status,
           p_current_period_end: toIso(periodEndSeconds(sub)),
-          // A cancellation scheduled from the portal arrives as `updated` with
-          // this set, while the status stays active until the period ends. Salomeh
-          // cancelled and Settings said nothing, because this was never read.
+          // A cancellation scheduled from the portal arrives as `updated` while
+          // the status stays active until the period ends. See
+          // cancellationScheduled: the portal expresses this through cancel_at,
+          // not the cancel_at_period_end boolean.
           p_cancel_at_period_end:
             event.type === 'customer.subscription.deleted'
               ? false
-              : ((sub as unknown as { cancel_at_period_end?: boolean }).cancel_at_period_end ?? false),
+              : cancellationScheduled(sub),
         });
         // Unchecked before, which is how a subscription could go live in Stripe
         // while the app still said Free.
@@ -263,8 +295,7 @@ export default async function handler(req: Req, res: Res) {
           p_subscription_id: sub.id,
           p_status: sub.status,
           p_current_period_end: toIso(periodEndSeconds(sub)),
-          p_cancel_at_period_end:
-            (sub as unknown as { cancel_at_period_end?: boolean }).cancel_at_period_end ?? false,
+          p_cancel_at_period_end: cancellationScheduled(sub),
         });
         if (applied.error) throw new Error(`apply_subscription_state: ${applied.error.message}`);
         break;

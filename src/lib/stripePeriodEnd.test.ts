@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { periodEndSeconds } from '../../api/stripe-webhook';
+import { periodEndSeconds, cancellationScheduled } from '../../api/stripe-webhook';
 
 /**
  * The root cause of the missing cancellation date.
@@ -80,6 +80,17 @@ describe('period end extraction', () => {
     expect(periodEndSeconds({ cancel_at: null, items: { data: [] } })).toBeUndefined();
   });
 
+  it('reads the period end from Salomeh\'s real subscription shape', () => {
+    // Fetched from the sandbox on 15 Aug. Nothing at the top level; the date is
+    // on the item and mirrored in cancel_at.
+    expect(periodEndSeconds({
+      status: 'active',
+      cancel_at_period_end: false,
+      cancel_at: 1788723752,
+      items: { data: [{ current_period_end: 1788723752 }] },
+    })).toBe(1788723752);
+  });
+
   it('regression: the exact shape that stored NULL for every paid profile', () => {
     // A stripe-node v22 subscription object. Nothing at the top level, the date
     // only on the item. This returned undefined before the fix.
@@ -102,5 +113,54 @@ describe('period end extraction', () => {
       },
     };
     expect(periodEndSeconds(sub)).toBe(SEP_6);
+  });
+});
+
+/**
+ * The second reason Settings showed a bare "Paid".
+ *
+ * The Customer Portal expresses "cancel at the end of the period" by setting
+ * `cancel_at`, NOT by setting the `cancel_at_period_end` boolean. Reading only
+ * the boolean reported no cancellation for a subscription Stripe's own portal
+ * described as "Cancels Sep 6" — and unlike the period-end bug, this one would
+ * have survived a redelivery of the event, because the event was correct and we
+ * were reading it wrongly.
+ */
+describe('is a cancellation scheduled', () => {
+  it("recognises Salomeh's real subscription as cancelling", () => {
+    // Verbatim from the sandbox: the boolean is false and cancel_at carries it.
+    expect(cancellationScheduled({
+      status: 'active',
+      cancel_at_period_end: false,
+      canceled_at: 1786800  /* 7 Aug */,
+      cancel_at: 1788723752 /* 6 Sep */,
+    })).toBe(true);
+  });
+
+  it('still honours the boolean when Stripe does set it', () => {
+    expect(cancellationScheduled({ status: 'active', cancel_at_period_end: true })).toBe(true);
+  });
+
+  it('reports no cancellation for an ordinary active subscription', () => {
+    expect(cancellationScheduled({
+      status: 'active', cancel_at_period_end: false, cancel_at: null,
+    })).toBe(false);
+  });
+
+  it('treats an already-ended subscription as done, not pending', () => {
+    // Otherwise a finished subscription would show "cancels <date>" forever,
+    // and the plan is derived from the status anyway.
+    expect(cancellationScheduled({
+      status: 'canceled', cancel_at: 1788723752, cancel_at_period_end: true,
+    })).toBe(false);
+  });
+
+  it('handles a trialing subscription set to cancel', () => {
+    expect(cancellationScheduled({ status: 'trialing', cancel_at: 1788723752 })).toBe(true);
+  });
+
+  it('does not invent a cancellation from missing fields', () => {
+    expect(cancellationScheduled({ status: 'active' })).toBe(false);
+    expect(cancellationScheduled({})).toBe(false);
   });
 });
