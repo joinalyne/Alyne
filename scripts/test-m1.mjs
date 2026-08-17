@@ -673,6 +673,45 @@ async function main() {
     const after = await billing();
     check('a user cannot fake a pending cancellation',
       after.cancel_at_period_end === false, selfCancel ? 'rejected ' + selfCancel.code : 'ignored');
+
+    console.log('');
+    console.log('--- clearing test billing state (0019) ---');
+    // Salomeh subscribed in SANDBOX while we proved the flow, against her LIVE
+    // profile. Clearing the plan alone would not be enough: checkout reuses a
+    // stored customer id, and sandbox ids mean nothing to the live account.
+    await setBilling('active', true);
+    const { data: removed, error: resetErr } = await admin.rpc('reset_billing_state', {
+      p_user_id: canceller.id,
+    });
+    const gone = await admin.from('profiles')
+      .select('plan, subscription_status, stripe_customer_id, stripe_subscription_id, current_period_end, cancel_at_period_end')
+      .eq('id', canceller.id).single();
+    const g = gone.data;
+
+    check('the reset runs and reports what it detached',
+      !resetErr && removed?.[0]?.removed_customer_id === 'cus_cancel_test',
+      resetErr?.message ?? removed?.[0]?.removed_customer_id);
+    check('the plan goes back to free', g.plan === 'free', g.plan);
+    check('the Stripe customer is forgotten, so a real checkout starts fresh',
+      g.stripe_customer_id === null, String(g.stripe_customer_id));
+    check('the subscription and its status go with it',
+      g.stripe_subscription_id === null && g.subscription_status === null,
+      `${g.stripe_subscription_id} / ${g.subscription_status}`);
+    check('and no cancellation notice is left stranded on a free plan',
+      g.cancel_at_period_end === false && g.current_period_end === null,
+      `${g.cancel_at_period_end} / ${g.current_period_end}`);
+
+    // The whole point of a forgotten customer: the mapping must not resolve, or
+    // a stray sandbox event would land back on a live profile.
+    const { data: orphaned } = await admin.rpc('user_for_stripe_customer', {
+      p_customer_id: 'cus_cancel_test',
+    });
+    check('the old customer no longer maps to anyone', orphaned === null, String(orphaned));
+
+    const { error: selfReset } = await canceller.client.rpc('reset_billing_state', {
+      p_user_id: canceller.id,
+    });
+    check('a user cannot call the reset either', !!selfReset, selfReset?.code);
   }
 
   console.log('\n— inactive-partner nudge (M4) —');
