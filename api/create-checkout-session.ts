@@ -12,6 +12,7 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { stripeModeFault } from './_stripe';
 
 type Req = {
   method?: string;
@@ -37,6 +38,16 @@ export default async function handler(req: Req, res: Res) {
   if (!secretKey || !monthly || !annual) {
     return res.status(503).json({ error: 'Stripe is not configured' });
   }
+
+  // Present and valid is not the same as correct. A sandbox key on production
+  // opens a Checkout that looks real, takes no money, and leaves the subscriber
+  // with nothing, so this closes rather than pretends. See api/_stripe.ts.
+  const modeFault = stripeModeFault(secretKey, process.env.VERCEL_ENV);
+  if (modeFault) {
+    console.error('[stripe] refusing to open Checkout:', modeFault);
+    return res.status(503).json({ error: 'Payments are temporarily unavailable' });
+  }
+
   if (!supabaseUrl || !anonKey) {
     return res.status(500).json({ error: 'Supabase env vars are not configured' });
   }
@@ -100,7 +111,20 @@ export default async function handler(req: Req, res: Res) {
 
     return res.status(200).json({ url: session.url });
   } catch (err) {
-    console.error('[stripe] checkout session failed:', (err as Error).message);
+    const message = (err as Error).message;
+    // The other half of a half-swapped configuration: the key is live but the
+    // price IDs are still the sandbox ones, which exist in neither account the
+    // other is in. Named explicitly because "No such price" otherwise reads as a
+    // deleted price rather than a variable set on the wrong scope.
+    if ((err as { code?: string }).code === 'resource_missing') {
+      console.error(
+        '[stripe] checkout failed on a missing resource:', message,
+        '— price IDs and the secret key must come from the SAME Stripe account. ' +
+        'Live key with sandbox price IDs, or the reverse, fails exactly here.',
+      );
+    } else {
+      console.error('[stripe] checkout session failed:', message);
+    }
     return res.status(502).json({ error: 'Could not start checkout' });
   }
 }

@@ -22,6 +22,7 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { eventModeFault } from './_stripe';
 
 /**
  * Vercel parses JSON bodies by default. Stripe signs the RAW bytes, so a parsed
@@ -187,6 +188,18 @@ export default async function handler(req: Req, res: Res) {
     // Stripe not to retry, which is right: a forged request will never verify.
     console.error('[stripe] signature verification failed:', (err as Error).message);
     return res.status(400).json({ error: 'Invalid signature' });
+  }
+
+  // The signature proved the sender, not that the two Stripe secrets on this
+  // deployment belong together. If they do not, handling the event would read the
+  // subscription back from the wrong account, so this stops before the
+  // idempotency marker is written. 503 rather than 400 on purpose: it is a
+  // configuration fault, not a forgery, so Stripe SHOULD retry, and the retries
+  // will land once the pair is fixed. See api/_stripe.ts.
+  const pairFault = eventModeFault(event.livemode, secretKey);
+  if (pairFault) {
+    console.error('[stripe] refusing event', event.id, event.type + ':', pairFault);
+    return res.status(503).json({ error: 'Stripe mode mismatch', detail: pairFault });
   }
 
   const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });

@@ -13,6 +13,7 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { stripeModeFault } from './_stripe';
 
 type Req = {
   method?: string;
@@ -31,6 +32,16 @@ export default async function handler(req: Req, res: Res) {
   const appUrl = process.env.APP_URL?.trim() || 'https://app.joinalyne.com';
 
   if (!secretKey) return res.status(503).json({ error: 'Stripe is not configured' });
+
+  // A customer id belongs to one Stripe account. Opening the portal with a key
+  // from the other one fails as "no such customer", which reads like a missing
+  // subscription rather than a misconfigured deployment.
+  const modeFault = stripeModeFault(secretKey, process.env.VERCEL_ENV);
+  if (modeFault) {
+    console.error('[stripe] refusing to open the billing portal:', modeFault);
+    return res.status(503).json({ error: 'Billing management is temporarily unavailable' });
+  }
+
   if (!supabaseUrl || !anonKey) {
     return res.status(500).json({ error: 'Supabase env vars are not configured' });
   }
