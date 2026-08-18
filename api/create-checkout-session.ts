@@ -12,7 +12,7 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { stripeModeFault } from './_stripe';
+import { stripeModeFault } from './_stripe.js';
 
 type Req = {
   method?: string;

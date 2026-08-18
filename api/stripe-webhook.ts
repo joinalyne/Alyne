@@ -22,7 +22,7 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { eventModeFault } from './_stripe';
+import { eventModeFault } from './_stripe.js';
 
 /**
  * Vercel parses JSON bodies by default. Stripe signs the RAW bytes, so a parsed
