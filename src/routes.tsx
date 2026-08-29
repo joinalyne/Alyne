@@ -12,6 +12,7 @@ import HomeEmpty from "./pages/HomeEmpty";
 import Admin from "./pages/Admin";
 import ResetPassword from "./pages/ResetPassword";
 import Upgrade from "./pages/Upgrade";
+import Install from "./pages/Install";
 import { RequireAuth, RequireAdmin, RedirectIfSignedIn } from "./components/RequireAuth";
 
 // `requireOnboarded={false}` on the onboarding screens themselves: the guard
@@ -35,6 +36,10 @@ export const router = createBrowserRouter([
     // is not signed in when they arrive.
     path: "/reset-password",
     Component: ResetPassword,
+  },
+    {
+    path: "/install",
+    Component: Install,
   },
   {
     path: "/profile-setup",
