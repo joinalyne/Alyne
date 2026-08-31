@@ -1,3 +1,4 @@
+import { AlyneWordmark } from '../components/AlyneWordmark';
 
 const GOLD = "#A8893F";
 const INK = "#2B2B2B";
@@ -65,18 +66,8 @@ export default function Install() {
       }}
     >
       <div style={{ width: "100%", maxWidth: 448, paddingTop: 48, paddingBottom: 40 }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <span
-            style={{
-              fontFamily: "Georgia, serif",
-              fontSize: "2rem",
-              color: GREEN,
-              letterSpacing: "-0.02em",
-              fontWeight: 400,
-            }}
-          >
-            alyne
-          </span>
+         <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <AlyneWordmark className="w-24 mx-auto" />
         </div>
 
         <div
