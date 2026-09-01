@@ -772,6 +772,63 @@ async function main() {
   check('a user cannot run the nudge query', !!nudgeDenied, nudgeDenied?.code);
 
   // ---------------------------------------------------------------------------
+  // One notification per event (regression, 1 Sept)
+  //
+  // The send job runs every 5 minutes and looks 15 minutes back, so it meets
+  // every check-in three times. Only streak_reminder had an index to lose the
+  // race against, so partner_checked_in was inserted afresh on each pass and
+  // Kane's single check-in buzzed Salomeh's phone three times, ten minutes
+  // apart. 0020 makes the source row the key.
+  //
+  // Asserted against the database rather than the handler: the claim is only
+  // trustworthy if the INDEX refuses it, not if the code remembers to look.
+  // ---------------------------------------------------------------------------
+  console.log('\n— one notification per source event —');
+
+  const claimDate = daysAgo(0);
+  const checkInSource = '11111111-1111-4111-8111-111111111111';
+  const otherSource = '22222222-2222-4222-8222-222222222222';
+  const claim = (userId, kind, sourceId, localDate = claimDate) =>
+    admin.from('notification_log')
+      .insert({ user_id: userId, kind, local_date: localDate, source_id: sourceId });
+
+  const { error: firstClaim } = await claim(active.id, 'partner_checked_in', checkInSource);
+  check('the first claim on a check-in succeeds', !firstClaim, firstClaim?.message);
+
+  const { error: secondClaim } = await claim(active.id, 'partner_checked_in', checkInSource);
+  check('a second run cannot claim the same check-in',
+    secondClaim?.code === '23505', secondClaim?.code ?? 'inserted again');
+
+  // The precedence rule: relabelling the same event must not buy a second push.
+  const { error: relabelled } = await claim(active.id, 'partner_returned', checkInSource);
+  check('nor can it, relabelled as a return',
+    relabelled?.code === '23505', relabelled?.code ?? 'inserted again');
+
+  // Both halves of a pairing are told about the same match row.
+  const { error: partnerClaim } = await claim(silent.id, 'matched', checkInSource);
+  check('the other partner is still told about the same event',
+    !partnerClaim, partnerClaim?.message);
+
+  // A rematch after a goal change is a genuine second event on one day, and the
+  // local date alone would have suppressed it.
+  const { error: secondEvent } = await claim(active.id, 'matched', otherSource);
+  check('a genuinely different event on the same day still sends',
+    !secondEvent, secondEvent?.message);
+
+  // Reminders and nudges carry no source row, and neither do the rows written
+  // before 0020, so the index must not touch them.
+  const { error: nullOne } = await claim(active.id, 'inactive_nudge', null, daysAgo(1));
+  const { error: nullTwo } = await claim(active.id, 'inactive_nudge', null, daysAgo(1));
+  check('rows with no source event are left alone by the new index',
+    !nullOne && !nullTwo, `${nullOne?.code ?? 'ok'} / ${nullTwo?.code ?? 'ok'}`);
+
+  // And the original cap is untouched.
+  await claim(active.id, 'streak_reminder', null, daysAgo(2));
+  const { error: twiceInADay } = await claim(active.id, 'streak_reminder', null, daysAgo(2));
+  check('a reminder is still capped at one per local day',
+    twiceInADay?.code === '23505', twiceInADay?.code ?? 'inserted again');
+
+  // ---------------------------------------------------------------------------
   // Nobody is stranded (regression, 12 Aug)
   //
   // Enqueueing used to happen only on FindingPartner, a screen you pass through

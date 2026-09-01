@@ -19,6 +19,7 @@ import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
 import {
   partnerCheckedIn, streakReminder, matched, partnerReturned,
+  isReturnAfterSilence,
   type PushPayload, type NotificationKind,
 } from './_notifications.js';
 import {
@@ -106,15 +107,34 @@ export default async function handler(req: Req, res: Res) {
   const sent: Record<string, number> = {};
   const record = (kind: string) => { sent[kind] = (sent[kind] ?? 0) + 1; };
 
-  /** Send to every live device for a user, and log it once. */
-  async function notify(userId: string, kind: NotificationKind, payload: PushPayload, localDate: string) {
-    // Claim first. The unique index on (user_id, local_date) for reminders means
-    // a second concurrent run loses the insert and sends nothing, rather than
-    // both runs sending and only then noticing.
+  /** Send to every live device for a user, and log it once.
+   *
+   *  `sourceId` is the row that caused the notification — the check-in, or the
+   *  match. It is what makes a send exactly-once: this job runs every 5 minutes
+   *  over a 15-minute window, so it meets the same event three times, and the
+   *  claim below is the only thing standing between one check-in and three
+   *  buzzes on someone's phone. Reminders pass none, because their identity is
+   *  the local day and the index for that is already in place. */
+  async function notify(
+    userId: string, kind: NotificationKind, payload: PushPayload,
+    localDate: string, sourceId?: string,
+  ) {
+    // Claim first, and let the database be the one to say no: a unique-index
+    // violation is proof that another run got there, whereas checking for an
+    // existing row and then inserting leaves a gap two runs can both pass
+    // through.
     const { error: logError } = await db
       .from('notification_log')
-      .insert({ user_id: userId, kind, local_date: localDate });
-    if (logError) return; // already sent, or capped
+      .insert({ user_id: userId, kind, local_date: localDate, source_id: sourceId ?? null });
+    if (logError) {
+      // 23505 is the expected outcome — already claimed. Anything else means the
+      // claim failed for a reason we should hear about, rather than silently
+      // suppressing every notification of that kind.
+      if (logError.code !== '23505') {
+        console.error('[push] could not claim', kind, 'for', userId, '-', logError.message);
+      }
+      return;
+    }
 
     const { data: subs } = await db
       .from('push_subscriptions')
@@ -150,7 +170,7 @@ export default async function handler(req: Req, res: Res) {
   // ── 1 and 4: a partner checked in, or came back after a silence ────────────
   const { data: recentCheckIns } = await db
     .from('check_ins')
-    .select('user_id, created_at, local_date')
+    .select('id, user_id, created_at, local_date')
     .gte('created_at', since);
 
   for (const checkIn of recentCheckIns ?? []) {
@@ -176,23 +196,36 @@ export default async function handler(req: Req, res: Res) {
     // Notification 4 takes precedence over 1: someone returning after a silence
     // is the more meaningful event, and sending both would be two pushes about
     // one check-in.
-    const previous = actor.last_check_in_date;
-    const gapDays = previous
-      ? Math.round(
-          (Date.parse(checkIn.local_date) - Date.parse(previous)) / 86_400_000,
-        )
-      : 99;
+    //
+    // The gap has to come from the check-in HISTORY, not from
+    // profiles.last_check_in_date. The streak trigger in 0006 moves that column
+    // to the new check-in's date the moment the row lands, so by the time this
+    // job reads it the two dates are always equal and the gap is always zero —
+    // which is why notification 4 has never once fired in production. The
+    // previous check-in row is the only record of the silence that just ended.
+    const { data: earlier } = await db
+      .from('check_ins')
+      .select('local_date')
+      .eq('user_id', checkIn.user_id)
+      .lt('local_date', checkIn.local_date)
+      .order('local_date', { ascending: false })
+      .limit(1);
 
-    const payload =
-      gapDays >= 3
-        ? partnerReturned(actor.display_name ?? 'Your partner')
-        : partnerCheckedIn(actor.display_name ?? 'Your partner', actor.current_streak ?? 0);
+    const returning = isReturnAfterSilence(
+      earlier?.[0]?.local_date ?? null,
+      checkIn.local_date,
+    );
+
+    const payload = returning
+      ? partnerReturned(actor.display_name ?? 'Your partner')
+      : partnerCheckedIn(actor.display_name ?? 'Your partner', actor.current_streak ?? 0);
 
     await notify(
       recipientId,
-      gapDays >= 3 ? 'partner_returned' : 'partner_checked_in',
+      returning ? 'partner_returned' : 'partner_checked_in',
       payload,
       localDateFor(recipient.timezone),
+      checkIn.id,
     );
   }
 
@@ -216,6 +249,7 @@ export default async function handler(req: Req, res: Res) {
         'matched',
         matched(other?.display_name ?? 'your partner', GOAL_LABELS[m.goal] ?? 'your goal'),
         localDateFor(person.timezone),
+        m.id,
       );
     }
   }
@@ -226,14 +260,19 @@ export default async function handler(req: Req, res: Res) {
   for (const person of (due ?? []) as
     { user_id: string; local_date: string; streak: number; partner_name: string | null }[]) {
     // Her rule: a match today is the day's touch, so the nudge is dropped.
+    //
+    // limit(1) rather than maybeSingle(): the log still holds duplicate rows
+    // from before 0020, and maybeSingle() treats two rows as an error, returning
+    // null data. That reads as "not matched today" and sends the very nudge her
+    // rule suppresses — a dedupe bug quietly becoming a copy bug.
     const { data: matchedToday } = await db
       .from('notification_log')
       .select('id')
       .eq('user_id', person.user_id)
       .eq('kind', 'matched')
       .eq('local_date', person.local_date)
-      .maybeSingle();
-    if (matchedToday) continue;
+      .limit(1);
+    if (matchedToday?.length) continue;
 
     await notify(
       person.user_id,

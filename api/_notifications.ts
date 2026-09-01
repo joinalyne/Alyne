@@ -80,6 +80,33 @@ export function partnerReturned(partner: string): PushPayload {
 }
 
 /**
+ * Which of the two check-in notifications a check-in earns.
+ *
+ * Her spec: notification 4 for a partner returning after three or more silent
+ * days, notification 1 otherwise, and never both for one check-in.
+ *
+ * Takes the PREVIOUS CHECK-IN's local date, not the profile's
+ * `last_check_in_date`. The streak trigger moves that column to the new
+ * check-in's own date as the row lands, so a job reading it afterwards always
+ * measures a gap of zero — which is why notification 4 never fired in
+ * production between the M4 release and 1 September 2026. A pure function so
+ * the distinction is pinned by a test rather than by a comment.
+ *
+ * No previous check-in means a first check-in, which is not a return from
+ * anywhere: notification 1.
+ */
+export function isReturnAfterSilence(
+  previousLocalDate: string | null,
+  currentLocalDate: string,
+): boolean {
+  if (!previousLocalDate) return false;
+  const gapDays = Math.round(
+    (Date.parse(currentLocalDate) - Date.parse(previousLocalDate)) / 86_400_000,
+  );
+  return gapDays >= 3;
+}
+
+/**
  * Her spec: "On rematch, #3 fires and any pending #2 for that day is
  * suppressed (the match moment is the day's touch)."
  *

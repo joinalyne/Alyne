@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   partnerCheckedIn, streakReminder, matched, partnerReturned,
+  isReturnAfterSilence,
 } from '../../api/_notifications';
 
 /**
@@ -110,6 +111,47 @@ describe('deep links', () => {
     ]) {
       expect(n.url).not.toBe('/app');
     }
+  });
+});
+
+describe('choosing between "checked in" and "is back"', () => {
+  // Regression, 1 September 2026. This decision used to read
+  // profiles.last_check_in_date, which the streak trigger has already moved to
+  // the new check-in's own date by the time the send job runs. The gap was
+  // therefore always zero and notification 4 never fired once in production.
+  // These tests exist to keep the input the PREVIOUS check-in's date.
+
+  it('is a return after three or more silent days', () => {
+    expect(isReturnAfterSilence('2026-08-01', '2026-08-04')).toBe(true);
+    expect(isReturnAfterSilence('2026-08-01', '2026-08-20')).toBe(true);
+  });
+
+  it('is an ordinary check-in below three days', () => {
+    expect(isReturnAfterSilence('2026-08-03', '2026-08-04')).toBe(false);
+    expect(isReturnAfterSilence('2026-08-02', '2026-08-04')).toBe(false);
+  });
+
+  it('branches at exactly three, matching her spec', () => {
+    expect(isReturnAfterSilence('2026-08-01', '2026-08-03')).toBe(false);
+    expect(isReturnAfterSilence('2026-08-01', '2026-08-04')).toBe(true);
+  });
+
+  it('treats a first check-in as an ordinary one, not a return', () => {
+    // Nobody has come back from anywhere on their first day.
+    expect(isReturnAfterSilence(null, '2026-08-04')).toBe(false);
+  });
+
+  it('does not read the gap as zero when the dates are equal', () => {
+    // The exact shape of the bug: the profile column having been updated
+    // already made every comparison same-day.
+    expect(isReturnAfterSilence('2026-08-04', '2026-08-04')).toBe(false);
+  });
+
+  it('crosses a month and a DST change without drifting', () => {
+    // Local dates, not timestamps, so an hour shift must not round a 3-day gap
+    // down to 2.
+    expect(isReturnAfterSilence('2026-08-30', '2026-09-02')).toBe(true);
+    expect(isReturnAfterSilence('2026-10-24', '2026-10-27')).toBe(true);
   });
 });
 
