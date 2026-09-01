@@ -829,6 +829,33 @@ async function main() {
     twiceInADay?.code === '23505', twiceInADay?.code ?? 'inserted again');
 
   // ---------------------------------------------------------------------------
+  // Quiet hours belong to the RECIPIENT (regression, 1 Sept)
+  //
+  // in_quiet_hours() was built in 0010, hardened in 0012, tested since, and
+  // called by nothing but this file: the event senders never asked it, so 14 of
+  // 61 real check-in pushes landed between 21:30 and 08:00 local, the latest at
+  // 21:50. Salomeh spotted the 21:40-ish row herself.
+  //
+  // Asserted across several timezones so the suite covers both sides of the
+  // window whatever hour it is run at, and so a server-time regression - the
+  // easy mistake here - fails loudly.
+  // ---------------------------------------------------------------------------
+  console.log('\n— quiet hours follow the recipient timezone —');
+
+  for (const zone of ['Pacific/Auckland', 'Europe/London', 'America/Vancouver', 'Asia/Kolkata']) {
+    await admin.from('profiles').update({ timezone: zone }).eq('id', active.id);
+
+    const localTime = new Date().toLocaleTimeString('en-GB', { timeZone: zone, hour12: false });
+    const [hour, minute] = localTime.split(':').map(Number);
+    // Spans midnight, hence the OR rather than a range.
+    const expected = (hour === 21 && minute >= 30) || hour >= 22 || hour < 8;
+
+    const { data: quiet } = await admin.rpc('in_quiet_hours', { p_user_id: active.id });
+    check(`${zone} at ${localTime} reads as ${expected ? 'quiet' : 'awake'}`,
+      quiet === expected, `got ${quiet}`);
+  }
+
+  // ---------------------------------------------------------------------------
   // Nobody is stranded (regression, 12 Aug)
   //
   // Enqueueing used to happen only on FindingPartner, a screen you pass through

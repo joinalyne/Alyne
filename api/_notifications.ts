@@ -80,6 +80,23 @@ export function partnerReturned(partner: string): PushPayload {
 }
 
 /**
+ * Whether a kind is held back during quiet hours (21:30 to 08:00 local).
+ *
+ * Salomeh's call, 1 September 2026, when the rule turned out never to have been
+ * wired to the event senders: drop rather than hold until morning, because
+ * "your partner checked in" at 8am about last night is stale and they will see
+ * it on Home anyway. Being paired is the exception - worth waking up for - so
+ * 'matched' sends whatever the hour.
+ *
+ * Dropping, not queueing: an event only stays inside the sender's lookback
+ * window for 15 minutes, so there is nothing to deliver later even if we
+ * wanted to, and no log row is written for something that was not sent.
+ */
+export function respectsQuietHours(kind: NotificationKind): boolean {
+  return kind !== 'matched';
+}
+
+/**
  * Which of the two check-in notifications a check-in earns.
  *
  * Her spec: notification 4 for a partner returning after three or more silent

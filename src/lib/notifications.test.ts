@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   partnerCheckedIn, streakReminder, matched, partnerReturned,
-  isReturnAfterSilence,
+  isReturnAfterSilence, respectsQuietHours,
 } from '../../api/_notifications';
 
 /**
@@ -111,6 +111,27 @@ describe('deep links', () => {
     ]) {
       expect(n.url).not.toBe('/app');
     }
+  });
+});
+
+describe('quiet hours', () => {
+  // Salomeh's decision, 1 September 2026: drop inside the window rather than
+  // hold until morning, because a check-in notice about last night is stale.
+  // Being paired is the one thing worth waking up for.
+
+  it('holds the partner notifications back', () => {
+    expect(respectsQuietHours('partner_checked_in')).toBe(true);
+    expect(respectsQuietHours('partner_returned')).toBe(true);
+  });
+
+  it('holds the streak reminder back too', () => {
+    // Its 19:00 timing already keeps it clear of the window, so this is a belt
+    // as well as braces rather than a behaviour change.
+    expect(respectsQuietHours('streak_reminder')).toBe(true);
+  });
+
+  it('lets being matched through at any hour, on her instruction', () => {
+    expect(respectsQuietHours('matched')).toBe(false);
   });
 });
 

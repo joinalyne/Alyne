@@ -19,7 +19,7 @@ import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
 import {
   partnerCheckedIn, streakReminder, matched, partnerReturned,
-  isReturnAfterSilence,
+  isReturnAfterSilence, respectsQuietHours,
   type PushPayload, type NotificationKind,
 } from './_notifications.js';
 import {
@@ -119,7 +119,30 @@ export default async function handler(req: Req, res: Res) {
     userId: string, kind: NotificationKind, payload: PushPayload,
     localDate: string, sourceId?: string,
   ) {
-    // Claim first, and let the database be the one to say no: a unique-index
+    // Quiet hours, before the claim: a suppressed notification must leave no
+    // "sent" row behind, or the log stops meaning what it says.
+    //
+    // Calling the SQL function rather than comparing times here is deliberate.
+    // Its own header says it is "expressed once here so the reminder job and
+    // the event senders cannot drift apart" - and then the event senders never
+    // called it, which is the whole reason 14 of 61 check-in pushes landed
+    // between 21:30 and 08:00 local. Reimplementing the window in TypeScript
+    // would recreate exactly the drift it was written to prevent.
+    if (respectsQuietHours(kind)) {
+      const { data: quiet, error: quietError } = await db.rpc('in_quiet_hours', {
+        p_user_id: userId,
+      });
+      if (quietError) {
+        // Sending anyway would be the wrong way to fail: the cost of a missed
+        // check-in notice is that someone sees it on Home instead, and the cost
+        // of a wrong one is a push at 3am.
+        console.error('[push] quiet-hours check failed, holding', kind, '-', quietError.message);
+        return;
+      }
+      if (quiet) return;
+    }
+
+    // Claim next, and let the database be the one to say no: a unique-index
     // violation is proof that another run got there, whereas checking for an
     // existing row and then inserting leaves a gap two runs can both pass
     // through.
