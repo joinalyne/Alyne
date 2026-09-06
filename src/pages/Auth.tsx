@@ -61,6 +61,8 @@ export default function Auth() {
           throw new Error('That email is already registered. Log in instead.');
         }
 
+                if (data.user) window.posthog?.identify(data.user.id);
+        window.posthog?.capture('signed_up');
         // With email confirmation disabled the session arrives immediately.
         if (data.session) {
           await ensureProfile();
@@ -78,6 +80,7 @@ export default function Auth() {
       if (signInError) throw signInError;
 
       if (data.session) {
+                window.posthog?.identify(data.session.user.id);
         await ensureProfile();
         await routeAfterSignIn(data.session.user.id);
       }
