@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Zap, Target, SlidersHorizontal, Map, Check } from 'lucide-react';
+import { ChevronLeft, Zap } from 'lucide-react';
 import { Link, Navigate } from 'react-router';
 import { startCheckout } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
@@ -9,7 +9,8 @@ import { Alert } from '../components/Alert';
 // UPGRADE — the paywall screen. Design-complete; Jerome wires the money.
 //
 // Pricing (locked): $9.99/mo · $79.99/yr (~33% off) · 7-day free trial.
-// Launch paid feature: priority rematch. Other benefits shown as "coming soon".
+// Launch paid feature: priority rematch, and only that. The "coming soon" list
+// was removed rather than promise three features that are not scoped.
 //
 // Wired to Stripe Checkout. The price IDs and the 7 day trial live on the
 // server: this screen only says monthly or annual, so a tampered request cannot
@@ -18,12 +19,6 @@ import { Alert } from '../components/Alert';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
-
-const COMING_SOON = [
-  { icon: Target, title: 'Multiple goals' },
-  { icon: SlidersHorizontal, title: 'Matching filters' },
-  { icon: Map, title: 'Guided programs' },
-];
 
 export default function Upgrade() {
   const { profile } = useAuth();
@@ -117,27 +112,6 @@ export default function Upgrade() {
                 If a partner goes quiet, skip the queue and get re-paired first.
               </p>
             </div>
-          </div>
-        </div>
-
-        {/* Coming soon */}
-        <div className="rounded-[1.25rem] p-5 mb-8" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
-          <p
-            className="text-[0.75rem] uppercase mb-4"
-            style={{ color: '#8A8580', fontWeight: 600, letterSpacing: '0.07em' }}
-          >
-            Coming to your plan
-          </p>
-          <div className="space-y-3">
-            {COMING_SOON.map(({ icon: Icon, title }) => (
-              <div key={title} className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: '#F5F3F0' }}>
-                  <Icon size={15} color="#A8893F" strokeWidth={1.5} />
-                </div>
-                <p className="text-[0.9rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>{title}</p>
-                <Check size={14} color="#A8893F" strokeWidth={2} className="ml-auto" />
-              </div>
-            ))}
           </div>
         </div>
 
