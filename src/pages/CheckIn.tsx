@@ -65,6 +65,7 @@ export default function CheckIn() {
       const result = await saveCheckIn(selectedOption as CheckInType, message, media);
 
       if (result.ok) {
+                window.posthog?.capture('check_in_saved', { type: selectedOption });
         // Refresh so Home shows the streak this check-in just advanced.
         await refreshProfile();
         if (shouldOfferPush(true)) {
