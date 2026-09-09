@@ -85,8 +85,14 @@ export function partnerReturned(partner: string): PushPayload {
  * Salomeh's call, 1 September 2026, when the rule turned out never to have been
  * wired to the event senders: drop rather than hold until morning, because
  * "your partner checked in" at 8am about last night is stale and they will see
- * it on Home anyway. Being paired is the exception - worth waking up for - so
- * 'matched' sends whatever the hour.
+ * it on Home anyway.
+ *
+ * 'matched' is the only exemption, and her reasoning for why is worth keeping
+ * because it is the test for anything added later: being paired is once-ever,
+ * and there is somebody waiting at the other end. A partner returning is
+ * neither, so hearing about it at 07:00 instead of 03:00 costs nothing. Asked
+ * explicitly about 'partner_returned' on 9 September and she confirmed it stays
+ * dropped, to be revisited only if it proves to matter with real users.
  *
  * Dropping, not queueing: an event only stays inside the sender's lookback
  * window for 15 minutes, so there is nothing to deliver later even if we
