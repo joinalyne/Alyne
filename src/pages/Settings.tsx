@@ -1,4 +1,4 @@
-import { ChevronLeft, Camera, Pencil, LogOut, Check } from 'lucide-react';
+import { ChevronLeft, Camera, Pencil, LogOut, Check, ExternalLink, Mail } from 'lucide-react';
 import { Dumbbell, PenLine, BookOpen, Unlock, Sparkles, MoreHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -184,7 +184,7 @@ export default function Settings() {
           className="flex flex-col items-center py-8"
           style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: '1.25rem',
+            borderRadius: '18px',
             boxShadow: CARD_SHADOW,
             marginBottom: '20px',
           }}
@@ -217,7 +217,7 @@ export default function Settings() {
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: '1.25rem',
+            borderRadius: '18px',
             boxShadow: CARD_SHADOW,
             marginBottom: '20px',
             overflow: 'hidden',
@@ -283,7 +283,7 @@ export default function Settings() {
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: '1.25rem',
+            borderRadius: '18px',
             boxShadow: CARD_SHADOW,
             marginBottom: '28px',
             overflow: 'hidden',
@@ -342,7 +342,7 @@ export default function Settings() {
                     className="relative flex flex-col items-center justify-center gap-3 transition-all duration-150 active:scale-[0.97]"
                     style={{
                       backgroundColor: '#FFFFFF',
-                      borderRadius: '1.25rem',
+                      borderRadius: '18px',
                       padding: '20px 12px',
                       border: isSelected ? '1.5px solid #1A3328' : '1.5px solid transparent',
                       boxShadow: CARD_SHADOW,
@@ -378,7 +378,7 @@ export default function Settings() {
             "Manage subscription" → Stripe Customer Portal session, and show the
             plan as "Alyne Plan · renews {date}" from the subscription record. */}
         <div
-          className="rounded-[1.25rem] mb-7 overflow-hidden"
+          className="rounded-[18px] mb-7 overflow-hidden"
           style={{ backgroundColor: '#FFFFFF', boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)' }}
         >
           <p
@@ -430,7 +430,7 @@ export default function Settings() {
         {pushState !== 'unsupported' ? (
           <div
             style={{
-              backgroundColor: '#FFFFFF', borderRadius: '1.25rem',
+              backgroundColor: '#FFFFFF', borderRadius: '18px',
               boxShadow: CARD_SHADOW, marginBottom: '20px', overflow: 'hidden',
             }}
           >
@@ -486,6 +486,82 @@ export default function Settings() {
           </div>
         ) : null}
 
+        {/* Privacy & legal */}
+        <div
+          style={{
+            backgroundColor: '#FFFFFF', borderRadius: '18px',
+            boxShadow: CARD_SHADOW, marginBottom: '20px', overflow: 'hidden',
+          }}
+        >
+          <p
+            className="text-[0.75rem] uppercase px-5 pt-4 pb-2"
+            style={{ color: '#8A8580', fontWeight: 600, letterSpacing: '0.07em' }}
+          >
+            Privacy &amp; Legal
+          </p>
+          <a
+            href="https://www.joinalyne.com/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between px-5 py-3.5"
+            style={{ borderBottom: '1px solid rgba(43,43,43,0.06)', textDecoration: 'none' }}
+          >
+            <span className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>Privacy Policy</span>
+            <ExternalLink size={16} color="#8A8580" strokeWidth={1.5} />
+          </a>
+          <a
+            href="https://www.joinalyne.com/termsofservice"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between px-5 py-3.5"
+            style={{ textDecoration: 'none' }}
+          >
+            <span className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>Terms of Service</span>
+            <ExternalLink size={16} color="#8A8580" strokeWidth={1.5} />
+          </a>
+        </div>
+
+        {/* Delete my account */}
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '18px',
+            boxShadow: CARD_SHADOW,
+            marginBottom: '20px',
+            padding: '20px',
+          }}
+        >
+          <p
+            className="text-[0.75rem] uppercase"
+            style={{ color: '#8A8580', fontWeight: 600, letterSpacing: '0.07em', marginBottom: '12px' }}
+          >
+            Delete My Account
+          </p>
+          <p style={{ color: '#2B2B2B', fontSize: '0.9rem', lineHeight: 1.65, marginBottom: '10px' }}>
+            Send us an email and we will delete your account — usually within a couple of days.
+          </p>
+          <p style={{ color: '#8A8580', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '18px' }}>
+            We cancel your subscription, end your match so your partner gets re-paired, and delete your check-ins, photos and voice notes. Payment records are kept for tax purposes.
+          </p>
+          <a
+            href="mailto:hello@joinalyne.com?subject=Delete%20my%20Alyne%20account"
+            className="w-full flex items-center justify-center gap-2"
+            style={{
+              border: '1.5px solid rgba(168,137,63,0.3)',
+              borderRadius: '14px',
+              padding: '14px',
+              backgroundColor: 'transparent',
+              color: '#A8893F',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              textDecoration: 'none',
+            }}
+          >
+            <Mail size={16} strokeWidth={1.5} color="#A8893F" />
+            Email us to delete
+          </a>
+        </div>
+
         {error ? (
           <Alert>{error}</Alert>
         ) : null}
@@ -499,7 +575,7 @@ export default function Settings() {
           style={{
             backgroundColor: '#104241',
             color: '#FFFFFF',
-            borderRadius: '1.25rem',
+            borderRadius: '18px',
             padding: '18px',
             fontSize: '1.05rem',
             fontWeight: 700,
@@ -525,7 +601,7 @@ export default function Settings() {
           aria-labelledby="goal-change-title"
         >
           <div
-            className="w-full max-w-md m-4 p-6 rounded-[1.25rem]"
+            className="w-full max-w-md m-4 p-6 rounded-[18px]"
             style={{ backgroundColor: '#FFFFFF', boxShadow: CARD_SHADOW }}
           >
             <h2
@@ -544,7 +620,7 @@ export default function Settings() {
                 type="button"
                 onClick={() => void confirmGoalChange()}
                 disabled={changing}
-                className="w-full rounded-[1.25rem] py-4 disabled:opacity-60"
+                className="w-full rounded-[18px] py-4 disabled:opacity-60"
                 style={{
                   backgroundColor: '#104241', color: '#FFFFFF',
                   fontSize: '1rem', fontWeight: 700,
@@ -556,7 +632,7 @@ export default function Settings() {
                 type="button"
                 onClick={() => setPendingGoal(null)}
                 disabled={changing}
-                className="w-full rounded-[1.25rem] py-4 disabled:opacity-60"
+                className="w-full rounded-[18px] py-4 disabled:opacity-60"
                 style={{
                   backgroundColor: '#FFFFFF', color: '#2B2B2B',
                   fontSize: '1rem', fontWeight: 600,
