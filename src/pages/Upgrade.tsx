@@ -73,7 +73,7 @@ export default function Upgrade() {
 
         {/* Billing toggle */}
         <div
-          className="flex rounded-[1.25rem] p-1 mb-6"
+          className="flex rounded-[18px] p-1 mb-6"
           style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}
         >
           {(['monthly', 'annual'] as const).map((b) => {
@@ -101,7 +101,7 @@ export default function Upgrade() {
         )}
 
         {/* Live benefit */}
-        <div className="rounded-[1.25rem] p-5 mb-3" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
+        <div className="rounded-[18px] p-5 mb-3" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
           <div className="flex items-start gap-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-full shrink-0" style={{ background: '#F5F3F0' }}>
               <Zap size={22} color="#A8893F" strokeWidth={1.5} />
@@ -122,7 +122,7 @@ export default function Upgrade() {
           type="button"
           onClick={() => void startTrial()}
           disabled={starting}
-          className="w-full rounded-[1.25rem] py-[18px] transition-all duration-200 active:scale-[0.98]"
+          className="w-full rounded-[18px] py-[18px] transition-all duration-200 active:scale-[0.98]"
           style={{
             background: '#104241',
             color: '#FFFFFF',

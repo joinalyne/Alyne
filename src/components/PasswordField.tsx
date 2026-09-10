@@ -39,7 +39,7 @@ export function PasswordField({
         autoComplete={autoComplete}
         // Right padding leaves room for the button so long passwords do not run
         // underneath it.
-        className="w-full pl-6 pr-14 py-4 rounded-[1.25rem] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
+        className="w-full pl-6 pr-14 py-4 rounded-[18px] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
         style={{
           borderColor: 'rgba(43, 43, 43, 0.1)',
           color: '#2b2b2b',

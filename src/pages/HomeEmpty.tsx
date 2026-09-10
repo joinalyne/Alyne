@@ -123,7 +123,7 @@ export default function HomeEmpty() {
           className="mb-6"
           style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: '1.25rem',
+            borderRadius: '18px',
             padding: '36px 28px',
             boxShadow: CARD_SHADOW,
           }}
@@ -201,7 +201,7 @@ export default function HomeEmpty() {
           className="mb-8"
           style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: '1.25rem',
+            borderRadius: '18px',
             padding: '24px',
             boxShadow: CARD_SHADOW,
           }}

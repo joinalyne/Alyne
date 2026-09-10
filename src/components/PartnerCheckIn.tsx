@@ -66,7 +66,7 @@ export function PartnerCheckIn({
   return (
     <div
       className="mb-6"
-      style={{ backgroundColor: '#FFFFFF', borderRadius: '1.25rem', padding: '20px', boxShadow: CARD_SHADOW }}
+      style={{ backgroundColor: '#FFFFFF', borderRadius: '18px', padding: '20px', boxShadow: CARD_SHADOW }}
     >
       <div className="flex items-center gap-2 mb-3">
         <div

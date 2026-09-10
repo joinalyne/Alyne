@@ -78,7 +78,7 @@ export default function Matched() {
         </div>
 
         {/* Shared Goal Card */}
-        <div className="bg-white rounded-[1.25rem] p-6 text-center" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)' }}>
+        <div className="bg-white rounded-[18px] p-6 text-center" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)' }}>
           <p className="text-[0.75rem] uppercase tracking-wide mb-3" style={{ color: '#8A8580', fontWeight: 600, letterSpacing: '0.07em' }}>
             Shared Goal
           </p>
@@ -91,7 +91,7 @@ export default function Matched() {
         <div className="space-y-3 pt-4">
           <Link to="/home">
             <button
-              className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98]"
+              className="w-full rounded-[18px] py-4 transition-all duration-200 active:scale-[0.98]"
               style={{
                 backgroundColor: '#104241',
                 color: '#FFFFFF',

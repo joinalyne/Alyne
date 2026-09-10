@@ -41,7 +41,7 @@ export function InstallBanner() {
 
   return (
     <div
-      className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-[1.25rem] p-4"
+      className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-[18px] p-4"
       style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}
     >
       <div

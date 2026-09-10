@@ -13,7 +13,7 @@ export function Alert({ children }: { children: React.ReactNode }) {
   return (
     <p
       role="alert"
-      className="rounded-[1.25rem] px-5 py-3 text-center text-[0.9rem]"
+      className="rounded-[18px] px-5 py-3 text-center text-[0.9rem]"
       style={{
         color: 'var(--destructive)',
         backgroundColor: 'color-mix(in srgb, var(--destructive) 8%, #FFFFFF)',

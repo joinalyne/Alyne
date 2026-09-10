@@ -83,13 +83,13 @@ export default function ResetPassword() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
                 required
-                className="w-full px-6 py-4 rounded-[1.25rem] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
+                className="w-full px-6 py-4 rounded-[18px] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
                 style={inputStyle}
               />
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98]"
+                className="w-full rounded-[18px] py-4 transition-all duration-200 active:scale-[0.98]"
                 style={ctaStyle}
               >
                 {busy ? 'Sending…' : 'Send Reset Link'}
@@ -141,7 +141,7 @@ export default function ResetPassword() {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98]"
+              className="w-full rounded-[18px] py-4 transition-all duration-200 active:scale-[0.98]"
               style={ctaStyle}
             >
               {busy ? 'Saving…' : 'Save New Password'}
@@ -163,7 +163,7 @@ export default function ResetPassword() {
             </p>
             <Link
               to="/"
-              className="inline-block w-full rounded-[1.25rem] py-4 text-center transition-all duration-200 active:scale-[0.98]"
+              className="inline-block w-full rounded-[18px] py-4 text-center transition-all duration-200 active:scale-[0.98]"
               style={ctaStyle}
             >
               Log In

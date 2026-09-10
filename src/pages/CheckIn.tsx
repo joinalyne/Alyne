@@ -99,10 +99,10 @@ export default function CheckIn() {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <div
-          className="w-full max-w-md p-6 rounded-[1.25rem] text-center"
+          className="w-full max-w-md p-6 rounded-[18px] text-center"
           style={{ backgroundColor: '#FFFFFF', boxShadow: CARD_SHADOW }}
         >
-          <h2 className="text-[1.25rem] mb-2" style={{ color: '#1A3328', fontWeight: 600 }}>
+          <h2 className="text-[18px] mb-2" style={{ color: '#1A3328', fontWeight: 600 }}>
             Checked in.
           </h2>
           <p className="text-[0.95rem] leading-relaxed mb-6" style={{ color: '#8A8580' }}>
@@ -118,7 +118,7 @@ export default function CheckIn() {
                 await enablePush();
                 navigate('/home', { replace: true });
               }}
-              className="w-full rounded-[1.25rem] py-4 disabled:opacity-60"
+              className="w-full rounded-[18px] py-4 disabled:opacity-60"
               style={{ backgroundColor: '#104241', color: '#FFFFFF', fontWeight: 700 }}
             >
               {enabling ? 'One moment…' : 'Enable notifications'}
@@ -130,7 +130,7 @@ export default function CheckIn() {
                 markAsked();
                 navigate('/home', { replace: true });
               }}
-              className="w-full rounded-[1.25rem] py-4"
+              className="w-full rounded-[18px] py-4"
               style={{
                 backgroundColor: '#FFFFFF', color: '#2B2B2B', fontWeight: 600,
                 border: '1.5px solid rgba(43,43,43,0.15)',
@@ -189,7 +189,7 @@ export default function CheckIn() {
                 className="w-full text-left transition-all duration-200 active:scale-[0.98]"
                 style={{
                   backgroundColor: '#FFFFFF',
-                  borderRadius: '1.25rem',
+                  borderRadius: '18px',
                   padding: '20px',
                   boxShadow: CARD_SHADOW,
                   border: isSelected ? '1.5px solid #1A3328' : '1.5px solid transparent',
@@ -233,7 +233,7 @@ export default function CheckIn() {
             className="w-full resize-none focus:outline-none"
             style={{
               backgroundColor: '#FFFFFF',
-              borderRadius: '1.25rem',
+              borderRadius: '18px',
               padding: '18px 20px',
               border: '1.5px solid rgba(43,43,43,0.1)',
               boxShadow: '0 2px 12px rgba(43,43,43,0.03)',
@@ -254,7 +254,7 @@ export default function CheckIn() {
 
         {selectedOption === 'voice' ? (
           <div
-            className="mt-5 p-5 rounded-[1.25rem] text-center"
+            className="mt-5 p-5 rounded-[18px] text-center"
             style={{ backgroundColor: '#FFFFFF', boxShadow: CARD_SHADOW }}
           >
             {voice.state === 'unsupported' ? (
@@ -277,7 +277,7 @@ export default function CheckIn() {
                 <button
                   type="button"
                   onClick={voice.stop}
-                  className="w-full rounded-[1.25rem] py-3"
+                  className="w-full rounded-[18px] py-3"
                   style={{ backgroundColor: '#104241', color: '#FFFFFF', fontWeight: 700 }}
                 >
                   Stop recording
@@ -294,7 +294,7 @@ export default function CheckIn() {
                 <button
                   type="button"
                   onClick={voice.reset}
-                  className="w-full rounded-[1.25rem] py-3"
+                  className="w-full rounded-[18px] py-3"
                   style={{
                     backgroundColor: '#FFFFFF', color: '#2B2B2B', fontWeight: 600,
                     border: '1.5px solid rgba(43,43,43,0.15)',
@@ -308,7 +308,7 @@ export default function CheckIn() {
                 type="button"
                 onClick={() => void voice.start()}
                 disabled={voice.state === 'requesting'}
-                className="w-full rounded-[1.25rem] py-3 disabled:opacity-60"
+                className="w-full rounded-[18px] py-3 disabled:opacity-60"
                 style={{ backgroundColor: '#104241', color: '#FFFFFF', fontWeight: 700 }}
               >
                 {voice.state === 'requesting' ? 'Waiting for microphone…' : 'Start recording'}
@@ -322,7 +322,7 @@ export default function CheckIn() {
             <img
               src={photoPreview}
               alt="Your check-in photo"
-              className="w-full rounded-[1.25rem] object-cover"
+              className="w-full rounded-[18px] object-cover"
               style={{ maxHeight: '240px', boxShadow: CARD_SHADOW }}
             />
           </div>
@@ -356,7 +356,7 @@ export default function CheckIn() {
             style={{
               backgroundColor: '#104241',
               color: '#FFFFFF',
-              borderRadius: '1.25rem',
+              borderRadius: '18px',
               padding: '18px',
               fontSize: '1.05rem',
               fontWeight: 700,

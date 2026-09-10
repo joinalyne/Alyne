@@ -29,7 +29,7 @@ export function checkInButtonStyle(checkedIn: boolean): CSSProperties {
   return {
     backgroundColor: checkedIn ? CHECKED_IN_GREEN : ACTIVE_GREEN,
     color: '#FFFFFF',
-    borderRadius: '1.25rem',
+    borderRadius: '18px',
     padding: '18px',
     fontSize: '1.1rem',
     fontWeight: 700,

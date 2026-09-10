@@ -143,7 +143,7 @@ export default function ProfileSetup() {
               placeholder="Your name"
               required
               autoComplete="given-name"
-              className="w-full px-6 py-4 rounded-[1.25rem] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
+              className="w-full px-6 py-4 rounded-[18px] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
               style={{
                 borderColor: 'rgba(43, 43, 43, 0.1)',
                 color: '#2b2b2b',
@@ -157,7 +157,7 @@ export default function ProfileSetup() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-[1.25rem] py-4 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+            className="w-full rounded-[18px] py-4 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
             style={{
               backgroundColor: '#104241',
               color: '#FFFFFF',

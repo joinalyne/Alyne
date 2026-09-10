@@ -79,7 +79,7 @@ export default function Home() {
           className="mb-6"
           style={{
             backgroundColor: '#FFFFFF',
-            borderRadius: '1.25rem',
+            borderRadius: '18px',
             padding: '32px 28px',
             boxShadow: CARD_SHADOW,
           }}

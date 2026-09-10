@@ -80,7 +80,7 @@ export default function GoalSelection() {
                 key={goal.id}
                 type="button"
                 onClick={() => handleGoalSelect(goal.id)}
-                className="relative bg-white rounded-[1.25rem] p-6 transition-all duration-200 active:scale-[0.98] flex flex-col items-center justify-center gap-3 min-h-[140px]"
+                className="relative bg-white rounded-[18px] p-6 transition-all duration-200 active:scale-[0.98] flex flex-col items-center justify-center gap-3 min-h-[140px]"
                 style={{
                   backgroundColor: '#FFFFFF',
                   border: isSelected ? '1.5px solid #1A3328' : '1.5px solid transparent',
@@ -130,7 +130,7 @@ export default function GoalSelection() {
             type="button"
             onClick={handleFindPartner}
             disabled={saving}
-            className="w-full rounded-[1.25rem] py-5 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+            className="w-full rounded-[18px] py-5 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
             style={{
               backgroundColor: '#104241',
               color: '#FFFFFF',

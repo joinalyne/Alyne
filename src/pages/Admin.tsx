@@ -117,7 +117,7 @@ function EndMatchButton({ onConfirm }: { onConfirm: () => void }) {
 
 function PairCard({ pair, flagged, onEnd }: { pair: Pair; flagged?: boolean; onEnd: (id: string) => void }) {
   return (
-    <div className="rounded-[1.25rem] p-5 mb-3" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
+    <div className="rounded-[18px] p-5 mb-3" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-[0.75rem] uppercase" style={sectionLabel}>{pair.goal}</span>
@@ -134,7 +134,7 @@ function PairCard({ pair, flagged, onEnd }: { pair: Pair; flagged?: boolean; onE
       </div>
       <div className="grid grid-cols-2 gap-3">
         {[pair.a, pair.b].map((u, i) => (
-          <div key={i} className="flex items-center justify-between rounded-[1.25rem] px-4 py-3" style={{ background: '#F5F3F0' }}>
+          <div key={i} className="flex items-center justify-between rounded-[18px] px-4 py-3" style={{ background: '#F5F3F0' }}>
             <div>
               <p className="text-[0.95rem]" style={{ color: '#2B2B2B', fontWeight: 500 }}>{u.name}</p>
               <p className="text-[0.78rem]" style={{ color: u.lastCheckIn.includes('days') ? '#A8893F' : '#8A8580' }}>
@@ -238,7 +238,7 @@ export default function Admin() {
         {queue.length === 0 ? (
           <p className="text-[0.9rem]" style={{ color: '#8A8580' }}>Nobody waiting.</p>
         ) : (
-        <div className="rounded-[1.25rem]" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
+        <div className="rounded-[18px]" style={{ background: '#FFFFFF', boxShadow: CARD_SHADOW }}>
           {queue.map((q, i) => (
             <div
               key={q.id}
