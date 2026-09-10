@@ -36,3 +36,4 @@ dist-ssr
 .vapid-new.json
 VAPID-PRIVATE-KEY-FOR-SALOMEH.txt
 .env.vercel
+Claude outputs/
