@@ -35,10 +35,18 @@ describe('plan label', () => {
   });
 
   it('names the date when a cancellation is scheduled', () => {
+    // MIDDAY, not midnight. Salomeh reported this red in Victoria on
+    // 2026-09-11: the old fixture was 2026-09-06T00:00:00.000Z, which is the
+    // 5th anywhere behind UTC, so /6/ failed for her and passed for Jerome and
+    // for CI. The label was right and the fixture was wrong, sitting exactly on
+    // a day boundary. 12:00Z is the same calendar day in every inhabited zone.
+    //
+    // The boundary behaviour it used to test by accident is now tested on
+    // purpose, with the zone stated, in dates.test.ts.
     const label = planLabel({
       plan: 'paid',
       cancel_at_period_end: true,
-      current_period_end: '2026-09-06T00:00:00.000Z',
+      current_period_end: '2026-09-06T12:00:00.000Z',
     });
     // Locale-aware by design, so assert the parts rather than one fixed string:
     // a British reader sees "6 Sept" and Salomeh sees "Sep 6".

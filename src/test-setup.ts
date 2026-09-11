@@ -1,3 +1,6 @@
+// The timezone pin lives in test-timezone.ts, which vitest.config.ts loads
+// BEFORE this file: an assignment here would be hoisted below these imports and
+// run too late to matter.
 import '@testing-library/jest-dom/vitest';
 import { vi, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';

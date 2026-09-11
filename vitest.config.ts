@@ -4,7 +4,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
-    setupFiles: ['./src/test-setup.ts'],
+    // Order matters: the timezone pin has to land before anything formats a Date.
+    setupFiles: ['./src/test-timezone.ts', './src/test-setup.ts'],
     // Only unit and component tests. scripts/test-m1.mjs talks to the real
     // Supabase project and is run separately via `npm run test:m1`, so it must
     // not be swept up by a plain `npm test`.
