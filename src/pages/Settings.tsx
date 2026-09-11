@@ -501,8 +501,6 @@ export default function Settings() {
           </p>
           <a
             href="https://www.joinalyne.com/privacy-policy"
-            target="_blank"
-            rel="noopener noreferrer"
             className="flex items-center justify-between px-5 py-3.5"
             style={{ borderBottom: '1px solid rgba(43,43,43,0.06)', textDecoration: 'none' }}
           >
@@ -511,8 +509,6 @@ export default function Settings() {
           </a>
           <a
             href="https://www.joinalyne.com/termsofservice"
-            target="_blank"
-            rel="noopener noreferrer"
             className="flex items-center justify-between px-5 py-3.5"
             style={{ textDecoration: 'none' }}
           >
