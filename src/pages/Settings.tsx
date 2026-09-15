@@ -450,13 +450,22 @@ export default function Settings() {
                     /* iPhone in Safari. Notifications are genuinely impossible
                        until the app is on the home screen, so say how rather
                        than hiding the row, which is what it used to do. */
-                    ? 'Add Alyne to your home screen first: tap Share, then Add to Home Screen. Then open it from there and turn this on.'
+                    ? 'Add Alyne to your home screen first — on iPhone that is the only way notifications can reach you.'
                     : pushState === 'denied'
                       ? 'Blocked in your browser settings. You will need to allow it there first.'
                       : pushState === 'granted'
                         ? 'You will know when your partner checks in.'
                         : 'Know the moment your partner checks in.'}
                 </p>
+                {pushState === 'needs-install' ? (
+                  <Link
+                    to="/add-to-home"
+                    className="text-[0.78rem] mt-1.5 inline-block"
+                    style={{ color: '#A8893F', fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    Show me how &rarr;
+                  </Link>
+                ) : null}
               </div>
               {pushState === 'ready' || pushState === 'granted' ? (
                 <button

@@ -38,7 +38,7 @@ export const router = createBrowserRouter([
     Component: ResetPassword,
   },
     {
-    path: "/install",
+    path: "/add-to-home",
     Component: Install,
   },
   {

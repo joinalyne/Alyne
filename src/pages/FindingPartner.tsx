@@ -1,12 +1,13 @@
 import { motion } from 'motion/react';
 import { ChevronLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import Asset1 from '../imports/Asset_1-1.svg';
 import Asset2 from '../imports/Asset_2.svg';
 import { AlyneWordmark } from '../components/AlyneWordmark';
 import { enqueueAndMatch } from '../lib/supabase';
 import { Alert } from '../components/Alert';
+import { pushSupport } from '../lib/push';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Salomeh's v2 visual layer (30 July) over the existing logic.
@@ -19,6 +20,8 @@ import { Alert } from '../components/Alert';
 // Her file imports the wordmark as a default export; this repo exports it named,
 // so that is corrected rather than copied.
 // ─────────────────────────────────────────────────────────────────────────────
+
+const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
 /** How often to re-check while waiting for someone to join the queue. */
 const POLL_MS = 5000;
@@ -77,6 +80,12 @@ export default function FindingPartner() {
     };
   }, [navigate]);
 
+  // iPhone in a Safari tab. Push needs the app on the home screen there, so the
+  // wait — which is dead time anyway — is where the install is worth asking for.
+  // Plain derivation rather than state: it reads the same on every render and
+  // cannot change without a reload, so an effect would only add a second paint.
+  const needsInstall = pushSupport() === 'needs-install';
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       {/* A way out. This screen had no navigation at all, and on the installed
@@ -91,7 +100,7 @@ export default function FindingPartner() {
         <ChevronLeft size={24} strokeWidth={1.5} color="#2B2B2B" />
       </button>
 
-      <div className="w-full max-w-md space-y-10 text-center">
+      <div className="w-full max-w-md space-y-6 text-center">
 
         {/* Logo */}
         <motion.div
@@ -104,7 +113,7 @@ export default function FindingPartner() {
         </motion.div>
 
         {/* Animated Illustration */}
-        <div className="flex items-center justify-center py-8">
+        <div className="flex items-center justify-center py-4">
           <div className="relative w-[280px] h-[140px]">
 
             {/* Left Profile Silhouette */}
@@ -173,41 +182,117 @@ export default function FindingPartner() {
           </div>
         </div>
 
-        {/* Headline */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
-          className="space-y-4"
-        >
-          <h1 className="text-[2rem] tracking-tight" style={{ color: '#2B2B2B', fontWeight: 600 }}>
-            Finding your person<span style={{ color: '#A8893F' }}>.</span>
-          </h1>
+        {/* Text content */}
+        <div className="space-y-4 px-4 pb-2">
+          <motion.h1
+            className="text-[2rem] tracking-tight leading-tight"
+            style={{ color: '#2b2b2b', fontWeight: 600 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            Finding your person.
+          </motion.h1>
+
           {error ? (
             <Alert>{error}</Alert>
           ) : (
-            <p
-              className="text-[1.05rem] leading-relaxed mx-auto"
-              style={{ color: '#2B2B2B', maxWidth: '380px' }}
-            >
-              We&rsquo;re looking for someone with the same goal. We&rsquo;ll notify you the
-              moment we find a match &mdash; usually within 24 hours.
-            </p>
-          )}
-        </motion.div>
+            <>
+              <motion.p
+                className="text-[1rem] leading-relaxed px-2"
+                style={{ color: '#2b2b2b' }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                We&rsquo;re looking for someone with the same goal. We&rsquo;ll notify you the
+                moment we find a match &mdash; usually within 24 hours.
+              </motion.p>
 
-        {/* Reassurance */}
-        {error ? null : (
-          <motion.p
-            className="text-[1rem] italic"
-            style={{ color: '#A8893F' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1.4 }}
-          >
-            Good things take a moment.
-          </motion.p>
-        )}
+              <motion.p
+                className="text-[0.9rem] italic pt-1"
+                style={{ color: '#a8893f' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.7 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                Good things take a moment.
+              </motion.p>
+            </>
+          )}
+        </div>
+
+        {/* iPhone in a Safari tab: push only works once Alyne is on the home
+            screen, so the wait — dead time anyway — is where that ask belongs.
+            The polling above runs regardless, so they stay queued either way. */}
+        {needsInstall ? (
+          <>
+            {/* While you wait card */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="text-left"
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '18px',
+                padding: '22px',
+                boxShadow: CARD_SHADOW,
+              }}
+            >
+              <p style={{ color: '#2B2B2B', fontWeight: 600, fontSize: '0.975rem', lineHeight: 1.45, marginBottom: '6px' }}>
+                While you wait &mdash; add Alyne to your home screen
+              </p>
+              <p style={{ color: '#8A8580', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '14px' }}>
+                On iPhone it&rsquo;s the only way we can nudge you when your partner checks in.
+              </p>
+              <Link
+                to="/add-to-home"
+                style={{ color: '#A8893F', fontWeight: 600, fontSize: '0.9rem', textDecoration: 'none' }}
+              >
+                Show me how &rarr;
+              </Link>
+            </motion.div>
+
+            {/* Notifications card */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+              className="text-left"
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '18px',
+                padding: '16px 20px 20px',
+                boxShadow: CARD_SHADOW,
+              }}
+            >
+              <p
+                style={{
+                  color: '#8A8580',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.07em',
+                  textTransform: 'uppercase',
+                  marginBottom: '10px',
+                }}
+              >
+                Notifications
+              </p>
+              <p style={{ color: '#2B2B2B', fontWeight: 500, fontSize: '0.95rem', marginBottom: '4px' }}>Off</p>
+              <p style={{ color: '#8A8580', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '12px' }}>
+                Add Alyne to your home screen first &mdash; on iPhone that is the only way notifications can reach you.
+              </p>
+              <Link
+                to="/add-to-home"
+                style={{ color: '#A8893F', fontWeight: 600, fontSize: '0.9rem', textDecoration: 'none' }}
+              >
+                Show me how &rarr;
+              </Link>
+            </motion.div>
+          </>
+        ) : null}
+
 
       </div>
     </div>
