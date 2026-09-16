@@ -1,7 +1,7 @@
 import { Dumbbell, PenLine, BookOpen, Unlock, Sparkles, MoreHorizontal, Check } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { updateGoal, type Goal } from '../lib/supabase';
+import { supabase, updateGoal, type Goal } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
 import { Alert } from '../components/Alert';
 
@@ -31,6 +31,11 @@ export default function GoalSelection() {
 
   const handleGoalSelect = (goalId: Goal) => {
     setPicked(goalId);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/', { replace: true });
   };
 
   const handleFindPartner = async () => {
@@ -147,6 +152,21 @@ export default function GoalSelection() {
             You'll be matched within 24 hours.
           </p>
         </div>
+
+        {/* Escape hatch. Both onboarding screens are behind a guard that sends
+            an un-onboarded user straight back here, so without this someone who
+            signed up with the wrong address — or abandoned halfway and returned
+            later — is stuck with no way out but clearing site data. */}
+        <p className="text-center pt-2">
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            className="text-[0.85rem] underline underline-offset-2"
+            style={{ color: '#8A8580' }}
+          >
+            Not you? Sign out
+          </button>
+        </p>
       </div>
     </div>
   );

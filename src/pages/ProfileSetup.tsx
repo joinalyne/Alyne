@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { updateDisplayName, uploadAvatar } from '../lib/supabase';
+import { supabase, updateDisplayName, uploadAvatar } from '../lib/supabase';
 import { useAuth } from '../contexts/useAuth';
 import { Alert } from '../components/Alert';
 
@@ -32,6 +32,11 @@ export default function ProfileSetup() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/', { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,6 +175,21 @@ export default function ProfileSetup() {
             {saving ? 'Saving…' : 'Continue'}
           </button>
         </form>
+
+        {/* Escape hatch. Both onboarding screens are behind a guard that sends
+            an un-onboarded user straight back here, so without this someone who
+            signed up with the wrong address — or abandoned halfway and returned
+            later — is stuck with no way out but clearing site data. */}
+        <p className="text-center pt-2">
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            className="text-[0.85rem] underline underline-offset-2"
+            style={{ color: '#8A8580' }}
+          >
+            Not you? Sign out
+          </button>
+        </p>
 
       </div>
     </div>
