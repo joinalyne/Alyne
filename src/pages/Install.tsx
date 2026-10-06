@@ -140,7 +140,7 @@ export default function Install() {
         >
           <p style={{ color: INK, fontSize: "0.9rem", lineHeight: 1.65 }}>
             <strong style={{ color: GOLD }}>First, make sure you're in Safari.</strong>{" "}
-            Opened Alyne from Instagram, a text, or email? Tap the ··· or compass icon
+            Opened Alyne from Reddit, Instagram, a text, or email? Tap the ··· or compass icon
             and choose "Open in Safari" — otherwise the step below won't appear.
           </p>
         </div>
