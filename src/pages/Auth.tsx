@@ -6,12 +6,13 @@ import { Alert } from '../components/Alert';
 import { PasswordField } from '../components/PasswordField';
 import { trackSignup } from '../lib/pixels';
 
-const inputStyle = {
-  borderColor: 'rgba(43, 43, 43, 0.1)',
-  color: '#2b2b2b',
-  backgroundColor: '#FFFFFF',
-  boxShadow: '0 2px 12px rgba(43, 43, 43, 0.03)',
-};
+const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
+
+/** Cream fill, no visible edge until focus — see PasswordField's 'filled'. */
+const fieldClass =
+  'w-full px-6 py-4 text-[1rem] rounded-[18px] border-[1.5px] border-transparent ' +
+  'transition-all duration-200 focus:outline-none focus:border-[#1A3328]';
+const fieldStyle = { color: '#2b2b2b', backgroundColor: '#FAF8F5' };
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -96,53 +97,83 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-8">
+    <div
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ backgroundColor: '#FAF8F5' }}
+    >
+      <div className="w-full max-w-md">
+        {/* Salomeh's ad-landing redesign, folded into this screen rather than
+            living at a second route: `/` has to stay the one place a signup can
+            happen, or the signup handler, the already-registered case and the
+            conversion pixel would all have to be duplicated — and a landing page
+            whose CTA cannot actually create an account converts nothing. */}
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '18px',
+            padding: '40px 32px 36px',
+            boxShadow: CARD_SHADOW,
+          }}
+        >
+          {/* Logo */}
+          <div className="text-center mb-10">
+            <AlyneWordmark className="w-24 mx-auto" />
+          </div>
 
-        {/* Logo, and — for anyone arriving cold — what this actually is.
-            `/` is the ad landing page as well as the login screen, so in sign-up
-            mode it has to answer "what am I looking at" before it asks for an
-            email. The first two lines repeat the ad copy close to verbatim: the
-            match between what someone clicked and what they land on is most of
-            what keeps them on the page. Returning users logging in get none of
-            it — they know what Alyne is. */}
-        <div className="text-center">
-          <AlyneWordmark className="w-24 mx-auto mb-6" />
+          {/* In sign-up mode this answers "what am I looking at" before asking
+              for an email, in the same words as the ad that brought them here.
+              Returning users logging in need none of it. */}
           {isSignUp ? (
-            <div className="space-y-3">
+            <>
               <h1
-                className="text-[1.5rem] tracking-tight leading-tight"
-                style={{ color: '#2b2b2b', fontWeight: 600 }}
+                className="text-center mb-4"
+                style={{
+                  color: '#A8893F',
+                  fontSize: '1.85rem',
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2,
+                }}
               >
                 Week three is where it usually dies.
               </h1>
-              <p className="text-[0.95rem] leading-relaxed" style={{ color: '#2b2b2b' }}>
+              <p
+                className="text-center mb-4"
+                style={{ color: '#2B2B2B', fontSize: '1rem', lineHeight: 1.65 }}
+              >
                 Not because the plan was wrong &mdash; because nobody noticed when you
                 skipped.
               </p>
-              <p className="text-[0.95rem] leading-relaxed" style={{ color: '#8A8580' }}>
+              <p
+                className="text-center mb-8"
+                style={{ color: '#8A8580', fontSize: '1rem', lineHeight: 1.65 }}
+              >
                 Alyne pairs you with one person chasing the same goal. You check in to
                 each other, every day.
               </p>
-            </div>
+            </>
           ) : (
             <h1
-              className="text-[1.1rem] tracking-tight"
-              style={{ color: '#a8893f' }}
+              className="text-center mb-8"
+              style={{
+                color: '#A8893F',
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                letterSpacing: '-0.02em',
+                lineHeight: 1.2,
+              }}
             >
               Welcome back.
             </h1>
           )}
-        </div>
 
-        {error ? (
-          <Alert>{error}</Alert>
-        ) : null}
+          {error ? (
+            <div className="mb-4">
+              <Alert>{error}</Alert>
+            </div>
+          ) : null}
 
-        {/* Auth Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email Input */}
-          <div>
+          <form onSubmit={handleSubmit}>
             <input
               type="email"
               value={email}
@@ -150,65 +181,62 @@ export default function Auth() {
               placeholder="Email address"
               required
               autoComplete="email"
-              className="w-full px-6 py-4 rounded-[18px] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
-              style={inputStyle}
+              className={`${fieldClass} mb-3`}
+              style={fieldStyle}
             />
-          </div>
 
-          {/* Password Input, with a reveal toggle */}
-          <div>
-            <PasswordField
-              value={password}
-              onChange={setPassword}
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-            />
-          </div>
-
-          {/* Forgot password (log-in mode only) */}
-          {!isSignUp && (
-            <div className="text-right px-2">
-              <Link
-                to="/reset-password"
-                className="text-[0.875rem]"
-                style={{ fontWeight: 600, color: '#a8893f' }}
-              >
-                Forgot password?
-              </Link>
+            {/* Reveal toggle kept — it is the one thing a password field on a
+                phone genuinely needs. */}
+            <div className={isSignUp ? 'mb-6' : 'mb-2'}>
+              <PasswordField
+                variant="filled"
+                value={password}
+                onChange={setPassword}
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              />
             </div>
-          )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-[18px] py-4 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
-            style={{
-              backgroundColor: '#104241',
-              color: '#FFFFFF',
-              fontSize: '1.05rem',
-              fontWeight: 700,
-              boxShadow: '0 4px 20px rgba(16, 66, 65, 0.25)',
-              marginTop: '2rem'
-            }}
-          >
-            {loading ? 'One moment…' : isSignUp ? 'Get Started' : 'Log In'}
-          </button>
-        </form>
-
-        {/* Toggle Link */}
-        <div className="text-center pt-4">
-          <button
-            type="button"
-            onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-            className="text-[0.95rem] transition-opacity hover:opacity-100"
-            style={{ color: '#8A8580' }}
-          >
-            {isSignUp ? (
-              <>Already have an account? <span style={{ fontWeight: 600, color: '#a8893f' }}>Log in</span></>
-            ) : (
-              <>Don't have an account? <span style={{ fontWeight: 600, color: '#a8893f' }}>Sign up</span></>
+            {!isSignUp && (
+              <div className="text-right mb-6 px-1">
+                <Link
+                  to="/reset-password"
+                  className="text-[0.875rem]"
+                  style={{ fontWeight: 600, color: '#A8893F' }}
+                >
+                  Forgot password?
+                </Link>
+              </div>
             )}
-          </button>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mb-6 transition-all duration-200 active:scale-[0.98] disabled:opacity-60"
+              style={{
+                backgroundColor: '#104241',
+                color: '#FFFFFF',
+                borderRadius: '18px',
+                padding: '17px',
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                boxShadow: '0 4px 20px rgba(16,66,65,0.25)',
+              }}
+            >
+              {loading ? 'One moment…' : isSignUp ? 'Get Started' : 'Log In'}
+            </button>
+          </form>
+
+          {/* A button, not an anchor: switching mode must not navigate. */}
+          <p className="text-center" style={{ color: '#8A8580', fontSize: '0.9rem' }}>
+            {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+            <button
+              type="button"
+              onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
+              style={{ color: '#A8893F', fontWeight: 600 }}
+            >
+              {isSignUp ? 'Log in' : 'Sign up'}
+            </button>
+          </p>
         </div>
       </div>
     </div>
