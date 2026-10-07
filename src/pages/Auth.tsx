@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router';
 import { supabase, ensureProfile } from '../lib/supabase';
 import { Alert } from '../components/Alert';
 import { PasswordField } from '../components/PasswordField';
+import { trackSignup } from '../lib/pixels';
 
 const inputStyle = {
   borderColor: 'rgba(43, 43, 43, 0.1)',
@@ -61,8 +62,11 @@ export default function Auth() {
           throw new Error('That email is already registered. Log in instead.');
         }
 
-                if (data.user) window.posthog?.identify(data.user.id);
+        if (data.user) window.posthog?.identify(data.user.id);
         window.posthog?.capture('signed_up');
+        // Tells Reddit and Meta which ad click this was, so the auction can
+        // optimise towards signups rather than towards clicks.
+        trackSignup();
         // With email confirmation disabled the session arrives immediately.
         if (data.session) {
           await ensureProfile();
@@ -95,15 +99,40 @@ export default function Auth() {
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md space-y-8">
 
-        {/* Logo */}
+        {/* Logo, and — for anyone arriving cold — what this actually is.
+            `/` is the ad landing page as well as the login screen, so in sign-up
+            mode it has to answer "what am I looking at" before it asks for an
+            email. The first two lines repeat the ad copy close to verbatim: the
+            match between what someone clicked and what they land on is most of
+            what keeps them on the page. Returning users logging in get none of
+            it — they know what Alyne is. */}
         <div className="text-center">
           <AlyneWordmark className="w-24 mx-auto mb-6" />
-          <h1
-            className="text-[1.1rem] tracking-tight"
-            style={{ color: '#a8893f' }}
-          >
-            {isSignUp ? 'Your journey starts here.' : 'Welcome back.'}
-          </h1>
+          {isSignUp ? (
+            <div className="space-y-3">
+              <h1
+                className="text-[1.5rem] tracking-tight leading-tight"
+                style={{ color: '#2b2b2b', fontWeight: 600 }}
+              >
+                Week three is where it usually dies.
+              </h1>
+              <p className="text-[0.95rem] leading-relaxed" style={{ color: '#2b2b2b' }}>
+                Not because the plan was wrong &mdash; because nobody noticed when you
+                skipped.
+              </p>
+              <p className="text-[0.95rem] leading-relaxed" style={{ color: '#8A8580' }}>
+                Alyne pairs you with one person chasing the same goal. You check in to
+                each other, every day.
+              </p>
+            </div>
+          ) : (
+            <h1
+              className="text-[1.1rem] tracking-tight"
+              style={{ color: '#a8893f' }}
+            >
+              Welcome back.
+            </h1>
+          )}
         </div>
 
         {error ? (
