@@ -13,20 +13,43 @@ import { Eye, EyeOff } from 'lucide-react';
  * password left on screen after the user has moved on is a shoulder-surfing risk
  * on a phone.
  */
+/**
+ * Two looks, because the same field appears on two different grounds.
+ * 'bordered' is the original: white fill on the grey page. 'filled' is for the
+ * white card on `/`, where a white input would have no edge at all.
+ */
+const FIELD = {
+  bordered: {
+    className: 'rounded-[18px] border-2',
+    style: {
+      borderColor: 'rgba(43, 43, 43, 0.1)',
+      backgroundColor: '#FFFFFF',
+      boxShadow: '0 2px 12px rgba(43, 43, 43, 0.03)',
+    },
+  },
+  filled: {
+    className: 'rounded-[18px] border-[1.5px] border-transparent focus:border-[#1A3328]',
+    style: { backgroundColor: '#FAF8F5' },
+  },
+} as const;
+
 export function PasswordField({
   value,
   onChange,
   placeholder = 'Password',
   autoComplete,
   required = true,
+  variant = 'bordered',
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   autoComplete?: string;
   required?: boolean;
+  variant?: keyof typeof FIELD;
 }) {
   const [visible, setVisible] = useState(false);
+  const field = FIELD[variant];
 
   return (
     <div className="relative">
@@ -39,13 +62,8 @@ export function PasswordField({
         autoComplete={autoComplete}
         // Right padding leaves room for the button so long passwords do not run
         // underneath it.
-        className="w-full pl-6 pr-14 py-4 rounded-[18px] border-2 text-[1rem] transition-all duration-200 focus:outline-none"
-        style={{
-          borderColor: 'rgba(43, 43, 43, 0.1)',
-          color: '#2b2b2b',
-          backgroundColor: '#FFFFFF',
-          boxShadow: '0 2px 12px rgba(43, 43, 43, 0.03)',
-        }}
+        className={`w-full pl-6 pr-14 py-4 text-[1rem] transition-all duration-200 focus:outline-none ${field.className}`}
+        style={{ color: '#2b2b2b', ...field.style }}
       />
       <button
         type="button"

@@ -1,6 +1,5 @@
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
-import { InstallBanner } from './components/InstallBanner';
 import { AuthProvider } from './contexts/AuthProvider';
 import { useAuth } from './contexts/useAuth';
 import { useAutoLogout } from './hooks/useAutoLogout';
@@ -24,7 +23,6 @@ export default function App() {
     <AuthProvider>
       <SessionWatcher />
       <RouterProvider router={router} />
-      <InstallBanner />
     </AuthProvider>
   );
 }

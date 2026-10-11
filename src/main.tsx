@@ -1,6 +1,10 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./styles/index.css";
+import { initPixels } from "./lib/pixels";
+
+// Before render: the page-view event should not wait on React.
+initPixels();
 
 createRoot(document.getElementById("root")!).render(<App />);
 
