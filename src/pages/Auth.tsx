@@ -146,7 +146,7 @@ export default function Auth() {
               </p>
               <p
                 className="text-center mb-8"
-                style={{ color: '#8A8580', fontSize: '1rem', lineHeight: 1.65 }}
+                style={{ color: '#6B6660', fontSize: '1rem', lineHeight: 1.65 }}
               >
                 Alyne pairs you with one person chasing the same goal. You check in to
                 each other, every day.
