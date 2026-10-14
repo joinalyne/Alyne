@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { todayLocalDate } from './dates';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Supabase client + data access.
@@ -219,12 +220,22 @@ export type PartnerSnapshot = {
     lastCheckInDate: string | null;
   };
   /** The partner's most recent check-in, if they have one. */
-  partnerLatestCheckIn: {
-    type: 'photo' | 'voice' | 'text';
-    body: string | null;
-    mediaUrl: string | null;
-    createdAt: string;
-  } | null;
+  partnerLatestCheckIn: CheckInEntry | null;
+  /**
+   * Both partners' check-ins since the start of the viewer's local day,
+   * oldest first. Up to three each since migration 0021.
+   */
+  todayCheckIns: (CheckInEntry & { mine: boolean })[];
+  /** How many check-ins the viewer has sent on their own local day (0–3). */
+  myCheckInsToday: number;
+};
+
+export type CheckInEntry = {
+  id: string;
+  type: 'photo' | 'voice' | 'text';
+  body: string | null;
+  mediaUrl: string | null;
+  createdAt: string;
 };
 
 /**
@@ -264,13 +275,33 @@ export async function getPartnerSnapshot(): Promise<PartnerSnapshot | null> {
     return null;
   }
 
+  // Ordered by created_at too: with up to three rows per day, local_date alone
+  // no longer picks out a single latest check-in.
   const { data: latest } = await supabase
     .from('check_ins')
-    .select('type, body, media_url, created_at')
+    .select('id, type, body, media_url, created_at')
     .eq('user_id', partnerId)
     .order('local_date', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  // "Today" is the viewer's local day. The partner may be in another timezone,
+  // so their rows are picked by time rather than by their own local_date.
+  const startOfMyDay = new Date();
+  startOfMyDay.setHours(0, 0, 0, 0);
+  const { data: today } = await supabase
+    .from('check_ins')
+    .select('id, user_id, type, body, media_url, created_at, local_date')
+    .in('user_id', [me, partnerId])
+    .gte('created_at', startOfMyDay.toISOString())
+    .order('created_at', { ascending: true });
+
+  // The cap is per local_date, so count mine the same way the database does.
+  const myLocalDate = todayLocalDate();
+  const myCheckInsToday = (today ?? []).filter(
+    (row) => row.user_id === me && row.local_date === myLocalDate,
+  ).length;
 
   return {
     matchId: match.id,
@@ -285,12 +316,22 @@ export async function getPartnerSnapshot(): Promise<PartnerSnapshot | null> {
     },
     partnerLatestCheckIn: latest
       ? {
+          id: latest.id,
           type: latest.type,
           body: latest.body,
           mediaUrl: latest.media_url,
           createdAt: latest.created_at,
         }
       : null,
+    todayCheckIns: (today ?? []).map((row) => ({
+      id: row.id,
+      type: row.type,
+      body: row.body,
+      mediaUrl: row.media_url,
+      createdAt: row.created_at,
+      mine: row.user_id === me,
+    })),
+    myCheckInsToday,
   };
 }
 
@@ -355,21 +396,25 @@ export function extensionForMimeType(mimeType: string, kind: CheckInType): strin
   return kind === 'voice' ? 'webm' : 'jpg';
 }
 
+/** Matches the cap in migration 0021. Change both together. */
+export const DAILY_CHECK_IN_LIMIT = 3;
+
 export type CheckInResult =
   | { ok: true }
-  | { ok: false; alreadyToday: true }
-  | { ok: false; alreadyToday: false; message: string };
+  | { ok: false; limitReached: true }
+  | { ok: false; limitReached: false; message: string };
 
 /**
- * Save today's check-in.
+ * Save one of today's check-ins (up to DAILY_CHECK_IN_LIMIT per local day).
  *
  * `local_date` is the user's LOCAL date, not UTC. It is the streak day
  * boundary, so using toISOString() here would roll a Vancouver user over seven
  * hours early. en-CA because it formats as ISO.
  *
- * One per local day is enforced by a unique index rather than by checking
- * first, so a double tap cannot slip two rows through. 23505 is that index
- * firing and is reported as a normal outcome, not an error.
+ * The daily cap is enforced by a database trigger (migration 0021) rather
+ * than by counting first here, so a double tap cannot slip a fourth row
+ * through. The trigger raises 'daily_check_in_limit', which is reported as a
+ * normal outcome, not an error.
  */
 export async function saveCheckIn(
   type: CheckInType,
@@ -391,14 +436,16 @@ export async function saveCheckIn(
         media instanceof File
           ? (media.name.split('.').pop() ?? 'bin')
           : extensionForMimeType(media.type, type);
-      const path = `${userId}/${localDate}-${type}.${extension}`;
+      // Unique per check-in. The old `${localDate}-${type}` name, with upsert,
+      // meant a second photo on the same day silently replaced the first.
+      const path = `${userId}/${localDate}-${type}-${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from('check-ins')
-        .upload(path, media, { upsert: true, contentType: media.type || undefined });
+        .upload(path, media, { upsert: false, contentType: media.type || undefined });
 
       if (uploadError) {
-        return { ok: false, alreadyToday: false, message: 'Could not upload that. Please try again.' };
+        return { ok: false, limitReached: false, message: 'Could not upload that. Please try again.' };
       }
       // A private bucket, so store the path. A signed URL is minted on read.
       mediaUrl = path;
@@ -414,14 +461,16 @@ export async function saveCheckIn(
     });
 
     if (error) {
-      if (error.code === '23505') return { ok: false, alreadyToday: true };
-      return { ok: false, alreadyToday: false, message: error.message };
+      if (error.message?.includes('daily_check_in_limit')) {
+        return { ok: false, limitReached: true };
+      }
+      return { ok: false, limitReached: false, message: error.message };
     }
     return { ok: true };
   } catch (err) {
     return {
       ok: false,
-      alreadyToday: false,
+      limitReached: false,
       message: err instanceof Error ? err.message : 'Something went wrong.',
     };
   }

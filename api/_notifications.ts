@@ -43,6 +43,20 @@ export function partnerCheckedIn(partner: string, partnerStreak: number): PushPa
 }
 
 /**
+ * A 2nd or 3rd check-in on the same day (up to three since migration 0021).
+ * The streak line only belongs on the first, which is the one that moved it.
+ * Same tag, so on most phones it replaces the earlier one instead of stacking.
+ */
+export function partnerSentUpdate(partner: string): PushPayload {
+  return {
+    title: `${partner} sent another update`,
+    body: 'Open Alyne to see it.',
+    tag: 'partner-checkin',
+    url: '/home',
+  };
+}
+
+/**
  * Spec notification 2. 19:00 local, only if not yet checked in.
  * The copy branches on whether there is a streak worth protecting: below three
  * days there is nothing to lose, so leading with the number would be hollow.

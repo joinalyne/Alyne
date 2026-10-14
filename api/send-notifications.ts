@@ -18,7 +18,7 @@
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
 import {
-  partnerCheckedIn, streakReminder, matched, partnerReturned,
+  partnerCheckedIn, partnerSentUpdate, streakReminder, matched, partnerReturned,
   isReturnAfterSilence, respectsQuietHours,
   type PushPayload, type NotificationKind,
 } from './_notifications.js';
@@ -239,13 +239,28 @@ export default async function handler(req: Req, res: Res) {
       checkIn.local_date,
     );
 
-    const payload = returning
-      ? partnerReturned(actor.display_name ?? 'Your partner')
-      : partnerCheckedIn(actor.display_name ?? 'Your partner', actor.current_streak ?? 0);
+    // An earlier check-in on the same local day means this is a 2nd or 3rd
+    // update, not the one that kept the streak alive.
+    const { count: sameDayBefore } = await db
+      .from('check_ins')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', checkIn.user_id)
+      .eq('local_date', checkIn.local_date)
+      .lt('created_at', checkIn.created_at);
+
+    const name = actor.display_name ?? 'Your partner';
+    // Follow-ups win over "returned": the first check-in of the day already
+    // announced the return, and saying it twice would be wrong.
+    const followUp = (sameDayBefore ?? 0) > 0;
+    const payload = followUp
+      ? partnerSentUpdate(name)
+      : returning
+        ? partnerReturned(name)
+        : partnerCheckedIn(name, actor.current_streak ?? 0);
 
     await notify(
       recipientId,
-      returning ? 'partner_returned' : 'partner_checked_in',
+      returning && !followUp ? 'partner_returned' : 'partner_checked_in',
       payload,
       localDateFor(recipient.timezone),
       checkIn.id,
