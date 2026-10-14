@@ -4,7 +4,12 @@ import { useEffect, useState } from 'react';
 import { CustomIcon } from '../components/CustomIcon';
 import { AlyneWordmark } from '../components/AlyneWordmark';
 import { Avatar } from '../components/Avatar';
-import { supabase, getPartnerSnapshot, type PartnerSnapshot } from '../lib/supabase';
+import {
+  supabase,
+  getPartnerSnapshot,
+  DAILY_CHECK_IN_LIMIT,
+  type PartnerSnapshot,
+} from '../lib/supabase';
 import { goalLabel } from '../lib/goals';
 import { useAuth } from '../contexts/useAuth';
 import { todayLocalDate } from '../lib/dates';
@@ -45,6 +50,16 @@ export default function Home() {
   const partnerName = snapshot.partner.displayName ?? 'Your partner';
   const partnerStreak = snapshot.partner.currentStreak;
   const partnerLast = snapshot.partnerLatestCheckIn;
+  // Up to three a day (migration 0021). The streak still only needs one.
+  const sentToday = snapshot.myCheckInsToday;
+  const doneForToday = sentToday >= DAILY_CHECK_IN_LIMIT;
+  const todayCheckIns = snapshot.todayCheckIns;
+  const partnerSentToday = todayCheckIns.some((c) => !c.mine);
+  const checkInLabel = doneForToday
+    ? "You're done for today 🌱"
+    : sentToday > 0
+      ? 'Send Another Update'
+      : 'Check In Today';
 
   return (
     <div className="min-h-screen flex items-start justify-center p-6 bg-background">
@@ -154,22 +169,56 @@ export default function Home() {
         </div>
 
         {/* Check In CTA */}
-        <Link to="/check-in">
+        <Link
+          to="/check-in"
+          aria-disabled={doneForToday}
+          onClick={(e) => { if (doneForToday) e.preventDefault(); }}
+        >
           {/* No disabled:opacity here on purpose. A translucent button let the
               partner card's drop shadow show through its top edge, which is the
               dark band Salomeh reported. checkInButtonStyle carries the full
               explanation and is tested. */}
           <button
             className="w-full transition-all duration-200 active:scale-[0.98] mb-6"
-            disabled={checkedInToday}
-            style={checkInButtonStyle(checkedInToday)}
+            disabled={doneForToday}
+            style={checkInButtonStyle(doneForToday)}
           >
-            {checkedInToday ? 'Checked In Today' : 'Check In Today'}
+            {checkInLabel}
           </button>
         </Link>
 
-        {/* Partner activity — the check-in itself, not just when it happened. */}
-        {partnerLast ? (
+        {sentToday > 0 && !doneForToday ? (
+          <p className="text-center text-[0.85rem] -mt-3 mb-6" style={{ color: '#8A8580' }}>
+            {sentToday} of {DAILY_CHECK_IN_LIMIT} sent today
+          </p>
+        ) : null}
+
+        {/* Today's updates from both of you, oldest first so it reads like a
+            conversation. Falls back to the partner's latest when today is
+            still empty. */}
+        {todayCheckIns.length > 0 ? (
+          <>
+            <p
+              className="text-[0.75rem] uppercase mb-3 text-center"
+              style={{ color: '#8A8580', fontWeight: 600, letterSpacing: '0.07em' }}
+            >
+              Today
+            </p>
+            {todayCheckIns.map((checkIn) => (
+              <PartnerCheckIn
+                key={checkIn.id}
+                checkIn={checkIn}
+                partnerName={partnerName}
+                mine={checkIn.mine}
+              />
+            ))}
+            {!partnerSentToday ? (
+              <p className="text-center text-[0.9rem] mb-8" style={{ color: '#8A8580' }}>
+                {partnerName} hasn&apos;t checked in yet today.
+              </p>
+            ) : null}
+          </>
+        ) : partnerLast ? (
           <PartnerCheckIn checkIn={partnerLast} partnerName={partnerName} />
         ) : (
           <p className="text-center text-[0.9rem] mb-8 leading-relaxed" style={{ color: '#8A8580' }}>

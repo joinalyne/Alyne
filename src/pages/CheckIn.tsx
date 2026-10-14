@@ -1,7 +1,12 @@
 import { Camera, Mic, Edit3, ChevronLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { getPartnerSnapshot, saveCheckIn, type CheckInType } from '../lib/supabase';
+import {
+  getPartnerSnapshot,
+  saveCheckIn,
+  DAILY_CHECK_IN_LIMIT,
+  type CheckInType,
+} from '../lib/supabase';
 import { useVoiceRecorder, formatDuration, MAX_RECORDING_MS } from '../hooks/useVoiceRecorder';
 import { shouldOfferPush, enablePush, markAsked } from '../lib/push';
 import { useAuth } from '../contexts/useAuth';
@@ -30,16 +35,21 @@ export default function CheckIn() {
   // handleSend — but showing a signed-in user a stranger's name is not a
   // sensible way to represent "not built yet".
   const [partnerName, setPartnerName] = useState<string | null>(null);
+  // How many of today's three the user has already sent. Null until loaded.
+  const [sentToday, setSentToday] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
     getPartnerSnapshot().then((snapshot) => {
-      if (active) setPartnerName(snapshot?.partner.displayName ?? null);
+      if (!active) return;
+      setPartnerName(snapshot?.partner.displayName ?? null);
+      setSentToday(snapshot?.myCheckInsToday ?? 0);
     });
     return () => { active = false; };
   }, []);
 
   const partner = { name: partnerName ?? 'your partner' };
+  const doneForToday = (sentToday ?? 0) >= DAILY_CHECK_IN_LIMIT;
 
   const today = new Date();
   const dateString = today.toLocaleDateString('en-US', {
@@ -76,11 +86,12 @@ export default function CheckIn() {
         return;
       }
 
-      setError(
-        result.alreadyToday
-          ? "You've already checked in today. Come back tomorrow."
-          : result.message,
-      );
+      if (result.limitReached) {
+        setSentToday(DAILY_CHECK_IN_LIMIT);
+        setError(`That's all ${DAILY_CHECK_IN_LIMIT} for today. Come back tomorrow.`);
+      } else {
+        setError(result.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -339,6 +350,7 @@ export default function CheckIn() {
             onClick={() => void handleSend()}
             disabled={
               saving ||
+              doneForToday ||
               !selectedOption ||
               (selectedOption === 'voice' && !voice.blob) ||
               (selectedOption === 'photo' && !photoFile)
@@ -363,10 +375,18 @@ export default function CheckIn() {
               boxShadow: '0 4px 20px rgba(16,66,65,0.25)',
             }}
           >
-            {saving ? 'Sending…' : `Send to ${partner.name}`}
+            {saving
+              ? 'Sending…'
+              : doneForToday
+                ? "You're done for today 🌱"
+                : `Send to ${partner.name}`}
           </button>
           <p className="text-center text-[0.85rem]" style={{ color: '#8A8580' }}>
-            {partner.name} will be notified when you check in.
+            {doneForToday
+              ? `You've sent all ${DAILY_CHECK_IN_LIMIT} for today. See you tomorrow.`
+              : sentToday
+                ? `${sentToday} of ${DAILY_CHECK_IN_LIMIT} sent today. ${partner.name} will be notified.`
+                : `${partner.name} will be notified when you check in.`}
           </p>
         </div>
 

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Mic, Camera, PenLine } from 'lucide-react';
-import { signedCheckInUrl, type PartnerSnapshot } from '../lib/supabase';
+import { signedCheckInUrl, type CheckInEntry } from '../lib/supabase';
 import { relativeTime } from '../lib/dates';
 import { canPlayType } from '../hooks/useVoiceRecorder';
 
 const CARD_SHADOW = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.07)';
 
-type CheckIn = NonNullable<PartnerSnapshot['partnerLatestCheckIn']>;
+type CheckIn = CheckInEntry;
 
 /** The stored path carries the container in its extension, which is all the
  *  browser needs to say whether it could decode it. */
@@ -33,9 +33,12 @@ function guessAudioType(path: string | null): string {
 export function PartnerCheckIn({
   checkIn,
   partnerName,
+  mine = false,
 }: {
   checkIn: CheckIn;
   partnerName: string;
+  /** True for the viewer's own check-in in the "Today" list. */
+  mine?: boolean;
 }) {
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [mediaFailed, setMediaFailed] = useState(false);
@@ -76,14 +79,14 @@ export function PartnerCheckIn({
           <Icon size={13} color="#A8893F" strokeWidth={1.5} />
         </div>
         <p className="text-[0.8rem]" style={{ color: '#8A8580' }}>
-          {partnerName}&apos;s {label.toLowerCase()} · {relativeTime(checkIn.createdAt)}
+          {mine ? 'Your' : `${partnerName}'s`} {label.toLowerCase()} · {relativeTime(checkIn.createdAt)}
         </p>
       </div>
 
       {checkIn.type === 'photo' && mediaUrl ? (
         <img
           src={mediaUrl}
-          alt={`${partnerName}'s check-in`}
+          alt={mine ? 'Your check-in' : `${partnerName}'s check-in`}
           className="w-full rounded-[1rem] object-cover mb-3"
           style={{ maxHeight: '260px' }}
         />
@@ -121,7 +124,7 @@ export function PartnerCheckIn({
       {/* A photo or voice note with no caption is normal, and needs no filler. */}
       {!checkIn.body && !checkIn.mediaUrl ? (
         <p className="text-[0.9rem]" style={{ color: '#8A8580' }}>
-          They checked in.
+          {mine ? 'You checked in.' : 'They checked in.'}
         </p>
       ) : null}
     </div>
