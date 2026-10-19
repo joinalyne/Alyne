@@ -44,8 +44,8 @@ const cardStyle = {
  * users. Photos go in public/landing/ — until they are added, Avatar falls
  * back to initials.
  */
-const PREVIEW_YOU_PHOTO: string | null = null;
-const PREVIEW_PARTNER_PHOTO: string | null = null;
+const PREVIEW_YOU_PHOTO: string | null = '/landing/you.jpg';
+const PREVIEW_PARTNER_PHOTO: string | null = '/landing/jordan.jpg';
 
 const HOW_IT_WORKS = [
   {
