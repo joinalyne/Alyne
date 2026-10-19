@@ -40,8 +40,9 @@ test('signing up with an existing address says so instead of hanging', async ({ 
   const email = await createConfirmedUser('dupe');
   await page.goto('/');
   await page.getByPlaceholder('Email address').fill(email);
-  await page.getByPlaceholder('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Get Started' }).click();
+  await page.getByPlaceholder('Create a password').fill(PASSWORD);
+  // The landing has two "Find my partner" buttons; the one in the form submits.
+  await page.locator('form').getByRole('button', { name: 'Find my partner' }).click();
 
   await expect(page.getByRole('alert')).toContainText(/already registered/i);
 });
